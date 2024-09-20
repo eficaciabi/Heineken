@@ -1,0 +1,68 @@
+PuntoVenta_Tmp1:
+    LOAD
+        ID_SUCURSAL			as Id_PuntoVenta,
+        CIUDAD_ID				as Id_Ciudad,
+        CIUDAD					as NombreCiudad,
+        DEPARTAMENTO_ID			as Id_Dpto,
+        DEPTO					as NombreDepto,
+        OBSERVACIONES			as Observaciones,
+        DIRECCION				as Direccion,
+        NOMBRE					as Nombre_Pdv,
+        CADENA					as Cadena,
+        CANAL					as Canal,
+        SUBCANAL				as SubCanal,
+        NIVEL3					as Cedi,	
+        TIPOLOGIA				as Tipologia,
+        REGIONAL				as Regional,
+        FORMATO                 as Formato,
+        ID_SAP                  as IdSap
+    FROM 
+    [lib://COMP_Stage (eficacia_admin_analitica)/SGI/Colombia/HEINEKEN/IPV_PuntoVenta.qvd]
+    (qvd);
+
+/*----------*/
+NoConcatenate
+PuntoVenta_Tmp2:
+    LOAD Distinct
+        Id_PuntoVenta,
+        IdSap,
+        Capitalize(NombreCiudad)	                        as NombreCiudad,
+        NombreDepto,
+        Capitalize(Nombre_Pdv)                              as Nombre_Pdv,
+        Capitalize(Cadena)                                  as Cadena,
+        Capitalize(Canal)                                   as Canal,
+        Capitalize(SubCanal)                                as SubCanal,
+        Capitalize(Cedi)									as Cedi,
+        Capitalize(Tipologia)                               as Tipologia,
+        Capitalize(Regional)                                as Regional,
+        Capitalize(Formato)                                 as Formato,
+        Applymap('Map_PdvPiloto',Id_PuntoVenta,'No Piloto')     as Id_PuntoVentaPiloto
+    Resident PuntoVenta_Tmp1;
+    DROP Table PuntoVenta_Tmp1;
+
+
+/*----------*/
+NoConcatenate
+PuntoVenta:
+    LOAD
+        Id_PuntoVenta		                        as SK.PuntoVenta,
+        Canal&'-'&Cadena                            as PuntoVenta.LLaveMeta,
+        NombreCiudad		                        as PuntoVenta.NombreCiudad,
+        NombreDepto			                        as PuntoVenta.NombreDepto, 
+        Nombre_Pdv			                        as PuntoVenta.Nombre_Pdv,
+        Id_PuntoVenta		                        as PuntoVenta.Id_PuntoVenta,
+        Cadena				                        as PuntoVenta.Cadena,
+        Canal				                        as PuntoVenta.Canal,
+        SubCanal			                        as PuntoVenta.SubCanal,
+        Cedi										as PuntoVenta.Cedi,
+        Tipologia			                        as PuntoVenta.Tipologia,
+        Regional			                        as PuntoVenta.Regional,
+        Formato                                     as PuntoVenta.Formato,
+        IdSap                                       as PuntoVenta.IdSap,
+        Applymap('Map_Universo', Cadena, Null())    as PuntoVenta.Universo,
+        Id_PuntoVentaPiloto                         as PuntoVenta.IdPDVPiloto
+    Resident PuntoVenta_Tmp2;
+    DROP Table PuntoVenta_Tmp2;
+
+Store PuntoVenta into [lib://COMP_DataMart (eficacia_admin_analitica)/SGI/Colombia/CENTRAL_CERVECERA/_PuntoVenta.qvd];
+Drop Table PuntoVenta;

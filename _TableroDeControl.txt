@@ -1,0 +1,504 @@
+
+        
+/*--------------------*CARGA BASE DE DATOS*--------------------*/
+
+Inventario_Tmp:    
+LOAD 
+ 	Id_PuntoVenta, 
+     Marca, 
+     Inventario,
+     ProgRutero,
+     Date(FechaActualizacion, 'YYYY/MM/DD')		as FechaActualizacion
+FROM
+[lib://COMP_Stage (eficacia_admin_analitica)/SGI/Colombia/CENTRAL_CERVECERA/Sh_Inventario.qvd]
+(qvd);
+
+Ventas_Tmp:
+LOAD 
+ 	Id_PuntoVenta, 
+     Marca, 
+     UndVendidasXdia,
+     TotalVentas
+FROM
+[lib://COMP_Stage (eficacia_admin_analitica)/SGI/Colombia/CENTRAL_CERVECERA/Sh_Ventas.qvd]
+(qvd);
+
+Cuota_Tmp:
+LOAD 
+ 	Id_PuntoVenta, 
+     Marca, 
+     Cuota
+FROM
+[lib://COMP_Stage (eficacia_admin_analitica)/SGI/Colombia/CENTRAL_CERVECERA/Sh_Cuota.qvd]
+(qvd);
+
+Sh_TipoEmpresa:
+LOAD 
+     Marca, 
+     TipoEmpresa
+FROM
+[lib://COMP_Stage (eficacia_admin_analitica)/SGI/Colombia/CENTRAL_CERVECERA/Sh_TipoEmpresa.qvd]
+(qvd);
+
+/*-------------*/
+Planes_Comerciales_Tmp1:
+LOAD 
+     CoberturaPlanes.IdPuntoVenta                      as Id_PuntoVenta, 
+     CoberturaPlanes.IdPersonal                        as Id_Usuario, 
+     CoberturaPlanes.Fecha                             as Fecha, 
+     CoberturaPlanes.Periodo                           as Periodo,
+     CoberturaPlanes.Evento                            as EventoPlanes, 
+     CoberturaPlanes.Marca                             as Marca,
+     CoberturaPlanes.Cantidad                          as Cantidad_PC,
+     CoberturaPlanes.ValidacionImpl                    as Implementacion_PC,
+     CoberturaPlanes.CumpleImplementacion              as  CumpleImplementacion_PC, 
+     CoberturaPlanes.OtroTipoSubtipo                   as OtroTipoSubtipo_PC, 
+     CoberturaPlanes.Causal_NoCumple_Implementacion    as Causal_NoCumple_Implementacion_PC 
+    
+FROM
+[lib://COMP_DataMart (eficacia_admin_analitica)/SGI/Colombia/CENTRAL_CERVECERA/_CoberturaPlanes_*.qvd]
+(qvd);
+
+/*-------------*/
+Exhibiciones_Tmp1:
+LOAD 
+     CK.Key1, 
+     Exhibiciones.Marca						as Marca, 
+     Exhibiciones.Tipo_Actividad			     as TipoActividad, 
+     Exhibiciones.Id_Sucursal				     as Id_PuntoVenta, 
+     Exhibiciones.Fecha						as Fecha, 
+     Exhibiciones.Subtipo_Actividad			as Subtipo_Actividad,
+     Exhibiciones.ID_Registro				     as ID_Registro
+FROM
+[lib://COMP_DataMart (eficacia_admin_analitica)/SGI/Colombia/CENTRAL_CERVECERA/_Exhibiciones_*.qvd]
+(qvd);
+
+
+/*-------------*/
+Participacion_Tmp1:
+LOAD  
+     Participacion.IdPuntoVenta				as Id_PuntoVenta, 
+     Participacion.Fecha						as Fecha, 
+     Participacion.Cant_Caras					as Cant_Caras, 
+     Participacion.Marca						as Marca
+FROM
+[lib://COMP_DataMart (eficacia_admin_analitica)/SGI/Colombia/CENTRAL_CERVECERA\_Participacion_*.qvd]
+(qvd);
+
+
+/*-----------------------------------------------------------------*/	
+/*--------------------*COMIENZA TRANSFORMACIÓN*--------------------*/
+/*-----------------------------------------------------------------*/
+/*--------------------*INVENTARIO*--------------------*/
+
+NoConcatenate
+Inventario_Tmp1:
+LOAD
+    Id_PuntoVenta,   
+    Marca,
+    ProgRutero,
+    Sum(Inventario) 					as Inventario,
+    LastValue(FechaActualizacion) 		as FechaActualizacion
+ Resident Inventario_Tmp
+ Group by
+     Id_PuntoVenta, 
+     ProgRutero,
+     Marca;
+ 
+Left Join 
+LOAD
+	Id_PuntoVenta, 
+     Marca,
+     ProgRutero,
+     Inventario,
+     FechaActualizacion
+Resident Inventario_Tmp;
+DROP Table Inventario_Tmp;
+
+/*--------------------*VENTAS*--------------------*/
+NoConcatenate
+Ventas_Tmp1:
+LOAD
+    Id_PuntoVenta,   
+    Marca,
+    Sum(TotalVentas) 			as TotalVentas,
+    Sum(UndVendidasXdia) 		as UndVendidasXdia
+ Resident Ventas_Tmp
+ Group by
+     Id_PuntoVenta, 
+     Marca;
+ 
+Left Join 
+LOAD
+	 Id_PuntoVenta, 
+     Marca,
+     UndVendidasXdia,
+     TotalVentas
+Resident Ventas_Tmp;
+DROP Table Ventas_Tmp;
+
+/*--------------------*CUOTA*--------------------*/
+NoConcatenate
+Cuota_Tmp1:
+LOAD
+    Id_PuntoVenta,   
+    Marca,
+    Sum(Cuota) 			as Cuota
+ Resident Cuota_Tmp
+ Group by
+     Id_PuntoVenta, 
+     Marca;
+ 
+Left Join 
+LOAD
+	 Id_PuntoVenta, 
+     Marca,
+     Cuota
+Resident Cuota_Tmp;
+DROP Table Cuota_Tmp;
+
+/*--------------------*PLANES COMERCIALES*--------------------*/
+NoConcatenate
+Planes_Comerciales_Tmp2:
+LOAD
+	 Id_PuntoVenta, 
+     Fecha,
+     Implementacion_PC,
+     Cantidad_PC,
+     If(Id_PuntoVenta & Marca = ApplyMap('Map_HomologacionMarca', Id_PuntoVenta & Marca),Marca,ApplyMap('Map_HomologacionMarca', Id_PuntoVenta & Marca, Null()))  as Marca
+Resident Planes_Comerciales_Tmp1
+	Where
+		Year(Fecha)&Capitalize(Date(Fecha, 'MMMM'))=Year(Today(Fecha))&Capitalize(Date(Today(Fecha), 'MMMM'));
+
+DROP Table Planes_Comerciales_Tmp1;
+
+
+NoConcatenate
+Planes_Comerciales_Tmp3:
+LOAD
+    Id_PuntoVenta,  
+    Marca,
+    Max(Fecha) as Fecha 
+ Resident Planes_Comerciales_Tmp2
+ Group by
+     Id_PuntoVenta,  
+     Marca;
+ 
+Left Join (Planes_Comerciales_Tmp3)
+LOAD
+	Id_PuntoVenta, 
+     Marca,
+     Fecha,
+     Cantidad_PC,
+     Implementacion_PC
+Resident Planes_Comerciales_Tmp2;
+DROP Table Planes_Comerciales_Tmp2;
+
+
+NoConcatenate
+Planes_Comerciales_Tmp4:
+LOAD 
+	 Id_PuntoVenta, 
+     Fecha,
+     Implementacion_PC,
+     Cantidad_PC,
+     If(Fecha<=Today(), Cantidad_PC, Null())										as CantidadHoy,
+     Marca
+Resident Planes_Comerciales_Tmp3;
+DROP Table Planes_Comerciales_Tmp3;
+
+NoConcatenate
+Planes_Comerciales_Tmp5:
+LOAD Distinct
+	 Id_PuntoVenta, 
+     Marca,
+     Sum(Implementacion_PC)			as Implementacion_PC,
+     Sum(Cantidad_PC)				as Cantidad_PC,
+     Sum(CantidadHoy)				as CantidadHoy
+Resident Planes_Comerciales_Tmp4
+Group By
+	 Id_PuntoVenta, 
+     Marca;
+Left Join
+LOAD
+	 Id_PuntoVenta, 
+     Marca
+Resident Planes_Comerciales_Tmp4;
+Drop Table Planes_Comerciales_Tmp4;
+
+
+
+/*--------------------*EXHIBICIONES*--------------------*/
+
+NoConcatenate
+Exhibiciones_Tmp2:
+LOAD
+	Id_PuntoVenta, 
+     Marca,
+     Fecha, 
+     ID_Registro,
+     TipoActividad
+Resident Exhibiciones_Tmp1
+Where
+		Year(Fecha)&Capitalize(Date(Fecha, 'MMMM'))=Year(Today(Fecha))&Capitalize(Date(Today(Fecha), 'MMMM'));
+DROP Table Exhibiciones_Tmp1;
+
+
+NoConcatenate
+Exhibiciones_Tmp3:
+LOAD Distinct
+     Id_PuntoVenta,
+     Max(Fecha)       as Fecha
+     Resident Exhibiciones_Tmp2
+     Where 
+          TipoActividad = 'Exhibiciones Por Gestion'
+     Group by	
+            Id_PuntoVenta;
+     
+Left join (Exhibiciones_Tmp3)
+
+LOAD     
+     Id_PuntoVenta, 
+     Marca,
+     Fecha, 
+     ID_Registro, 
+     TipoActividad
+     Resident Exhibiciones_Tmp2
+     Where 
+          TipoActividad = 'Exhibiciones Por Gestion';
+     Drop Table Exhibiciones_Tmp2;
+  
+     
+ NoConcatenate
+Exhibiciones_Tmp4:
+LOAD Distinct
+     Id_PuntoVenta,
+     Marca,
+     Count(ID_Registro) as ID_Registro   
+     Resident Exhibiciones_Tmp3
+     Group by	
+     		Marca,
+            Id_PuntoVenta;
+     
+Left join (Exhibiciones_Tmp4)
+
+LOAD     
+     Id_PuntoVenta, 
+     Marca
+     Resident Exhibiciones_Tmp3;
+     Drop Table Exhibiciones_Tmp3;
+
+/*--------------------*PARTICIPACIÓN*--------------------*/
+NoConcatenate
+Participacion_Tmp2:
+LOAD
+    Id_PuntoVenta, 
+    Date(MonthEnd(AddMonths(Today(), -1)), 'YYYY/MM/DD')				as MesVencido, 
+    Fecha, 
+    Cant_Caras,  
+    Marca
+Resident Participacion_Tmp1;
+DROP Table Participacion_Tmp1;
+
+Left Join
+LOAD 
+	Marca,
+	TipoEmpresa
+Resident Sh_TipoEmpresa;
+DROP Table Sh_TipoEmpresa;
+
+NoConcatenate
+Participacion_Tmp3:
+LOAD
+    Id_PuntoVenta, 
+    MesVencido, 
+    Fecha, 
+    Cant_Caras,  
+    Marca,
+    TipoEmpresa
+Resident Participacion_Tmp2
+Where
+	Fecha<= MesVencido
+And TipoEmpresa='Propio';
+DROP Table Participacion_Tmp2;
+
+NoConcatenate
+Participacion_Tmp4:
+LOAD
+	Id_PuntoVenta, 
+    Marca,
+    Sum(Cant_Caras)				as Cant_Caras
+Resident Participacion_Tmp3
+Group By
+	Id_PuntoVenta, 
+    Marca;
+Left Join
+LOAD
+	Id_PuntoVenta, 
+    Marca,
+    Cant_Caras
+Resident Participacion_Tmp3;
+DROP Table Participacion_Tmp3;
+
+/*--------------------*UNIÓN MÓDULOS*--------------------*/
+NoConcatenate
+Tablero_General_Tmp1:
+LOAD 
+    Id_PuntoVenta,
+    Marca, 
+    Inventario,
+    ProgRutero,
+    FechaActualizacion
+Resident Inventario_Tmp1;
+//Where
+//     ProgRutero=1;
+Drop Table Inventario_Tmp1; 
+
+
+Left join (Tablero_General_Tmp1)
+LOAD Distinct
+     Id_PuntoVenta,
+     Marca,
+     CantidadHoy,
+     Cantidad_PC,
+     Implementacion_PC
+ Resident Planes_Comerciales_Tmp5;
+ Drop Table Planes_Comerciales_Tmp5;
+ 
+ 
+ Left Join (Tablero_General_Tmp1)
+ LOAD 
+ 	Id_PuntoVenta, 
+     Marca,
+     ID_Registro
+Resident Exhibiciones_Tmp4;
+DROP Table Exhibiciones_Tmp4;
+
+Left Join (Tablero_General_Tmp1)
+LOAD
+	Id_PuntoVenta, 
+     Marca,
+	Cant_Caras
+Resident Participacion_Tmp4;
+DROP Table Participacion_Tmp4;
+
+NoConcatenate
+Tablero_General_Tmp2:
+LOAD Distinct
+	Id_PuntoVenta,  
+     Marca,                 
+     Cantidad_PC,
+     Implementacion_PC,
+     Cant_Caras,
+     FechaActualizacion,
+     Inventario,
+     ID_Registro,
+     Applymap('Map_CadenaTablero', Id_PuntoVenta, Null())								as Cadena,
+     CantidadHoy
+Resident Tablero_General_Tmp1;
+DROP Table Tablero_General_Tmp1;
+
+NoConcatenate
+Tablero_General_Tmp3:
+LOAD Distinct
+	 Id_PuntoVenta,  
+     Marca, 
+     CantidadHoy,
+     Cantidad_PC,
+     Implementacion_PC,
+     Cadena, 
+     FechaActualizacion,
+     Inventario,
+     Cant_Caras,
+     ID_Registro
+Resident Tablero_General_Tmp2
+Where
+Not(IsNull(Marca));
+DROP Table Tablero_General_Tmp2;
+
+Left Join (Tablero_General_Tmp3)
+LOAD
+	Id_PuntoVenta,  
+    Marca, 
+    TotalVentas,
+	UndVendidasXdia
+Resident Ventas_Tmp1;
+DROP Table Ventas_Tmp1;
+
+Left Join (Tablero_General_Tmp3)
+LOAD
+	Id_PuntoVenta,  
+     Marca, 
+     Cuota
+Resident Cuota_Tmp1;
+DROP Table Cuota_Tmp1;
+
+NoConcatenate
+Tablero_General_Tmp4:
+LOAD
+	Id_PuntoVenta, 
+     Marca, 
+     Inventario,
+      UndVendidasXdia,
+     Cantidad_PC,
+     Cadena, 
+     FechaActualizacion,
+     TotalVentas,
+     ID_Registro, 
+     Cuota,
+     CantidadHoy,
+     Implementacion_PC,
+     Cant_Caras*3                                 as CargueLineal,
+     Round(Inventario/UndVendidasXdia)			as Dias
+Resident Tablero_General_Tmp3;
+DROP Table Tablero_General_Tmp3;
+
+NoConcatenate
+Tablero_General_Tmp5:
+LOAD
+	Id_PuntoVenta, 
+     Marca, 
+     Money#(Inventario, '#', '#.#' , '#.##')												 as Inventario,
+      UndVendidasXdia,
+     Cantidad_PC,
+     Num#(Cuota)                                                 as Cuota,
+     FechaActualizacion,
+     Cadena, 
+     TotalVentas,
+     ID_Registro, 
+     CantidadHoy,
+     Implementacion_PC,
+     Dias,
+     CargueLineal,
+     Applymap('Map_Pdv', Id_PuntoVenta, Null())				as PuntodeVenta,
+     Inventario-CargueLineal								as Restante,
+     Date(Dias+FechaActualizacion, 'YYYY/MM/DD')				as Stock
+Resident Tablero_General_Tmp4;
+DROP Table Tablero_General_Tmp4;
+
+NoConcatenate
+TableroDeControl:
+LOAD
+	Id_PuntoVenta&'-'&Marca					  as CK.Key1,
+	Id_PuntoVenta                                  as TableroDeControl.Id_PuntoVenta, 
+     Marca                                          as TableroDeControl.Marca, 
+     Cantidad_PC                                    as TableroDeControl.Cantidad_PC,
+     Inventario                                     as TableroDeControl.Inventario,
+     UndVendidasXdia                                as TableroDeControl.UndVendidasXdia,
+     Cadena                                         as TableroDeControl.Cadena, 
+     PuntodeVenta                                   as TableroDeControl.PuntodeVenta,
+     Restante                                       as TableroDeControl.Restante,
+     FechaActualizacion                             as TableroDeControl.FechaActualizacion,
+     ID_Registro                                    as TableroDeControl.ID_Registro, 
+     Cuota                                          as TableroDeControl.Cuota,
+     CargueLineal                                   as TableroDeControl.CargueLineal,
+     Dias                                           as TableroDeControl.DiasInventario,
+     Stock                                          as TableroDeControl.Stock,
+     TotalVentas                                    as TableroDeControl.TotalVentas,
+     CantidadHoy                                    as TableroDeControl.CantidadHoy,
+     Implementacion_PC                              as TableroDeControl.Implementacion_PC
+Resident Tablero_General_Tmp5;
+DROP Table Tablero_General_Tmp5;
+
+STORE TableroDeControl INTO [lib://COMP_DataMart (eficacia_admin_analitica)/SGI/Colombia/CENTRAL_CERVECERA/_TableroDeControl.qvd];
+Drop Table  TableroDeControl;

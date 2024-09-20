@@ -1,0 +1,1053 @@
+
+Semana_Tmp:
+LOAD
+     Fecha, 
+     Semana
+FROM
+[lib://COMP_Stage (eficacia_admin_analitica)/SGI/Colombia/CENTRAL_CERVECERA/Sh_Semanas.qvd] 
+(qvd);
+
+NoConcatenate
+DiasSemana:
+LOAD 
+	 Semana,
+	 Fecha
+FROM
+[lib://COMP_Stage (eficacia_admin_analitica)/SGI/Colombia/CENTRAL_CERVECERA/Sh_Semanas.qvd]
+(qvd)
+Where
+	year(Fecha)& Num(Month(Fecha), '00')= $(Anno)$(Mes);
+	
+NoConcatenate
+DiasSemana_Tmp1:
+LOAD 
+	Semana,
+	LastValue(Fecha)			as Fecha
+Resident DiasSemana
+Group By
+	Semana;
+DROP Table DiasSemana;
+
+Map_DiasSemana:
+Mapping
+LOAD
+	'SEMANA ' & Semana,
+	 Fecha
+Resident DiasSemana_Tmp1;
+DROP Table DiasSemana_Tmp1;
+
+Rutero_Tmp1:
+	LOAD 
+		ID_REGISTRO,
+		ID_SUCURSAL,
+		FECHA,
+		ID_ASESOR,
+		ESTADO
+FROM
+[lib://COMP_Stage (eficacia_admin_analitica)/SGI/Colombia/HEINEKEN/Rutero_$(Anno)$(Mes).qvd]
+(qvd);
+
+Monitoreo_Tmp1:
+LOAD 
+	ID_ASESOR,
+     ID_SUCURSAL,
+     TIPO_RUTA, 
+     FECHA, 
+     ESTADO, 
+     PLANES_COMERCIALES
+FROM
+[lib://COMP_Stage (eficacia_admin_analitica)/SGI/Colombia/HEINEKEN/Monitoreo_$(Anno)$(Mes)*.qvd]
+(qvd);
+
+PlanesComerciales_Tmp:
+LOAD 
+     PlanesComerciales.Id_PuntoVenta														as IdPuntoVenta, 
+     PlanesComerciales.Cantidad															as Cantidad,
+     PlanesComerciales.Fecha																as _Fecha,
+     PlanesComerciales.FechaInicio															as FechaInicio,
+     PlanesComerciales.FechaFin															as FechaFin,
+     Year(PlanesComerciales.Fecha)&Num(Month(PlanesComerciales.Fecha), '00') 				          as PeriodoCaptura,
+     PlanesComerciales.NombreEvento													     as Evento,
+     PlanesComerciales.Marca																as Marca,
+     PlanesComerciales.Url_Captura														     as Foto,
+     PlanesComerciales.FechaHora															as FechaHora,
+     PlanesComerciales.SubTipo_Implementacion												as SubTipoImplementacion,
+     PlanesComerciales.Cantidad_Implementacion												as CantidadImplementacion,
+     PlanesComerciales.Estado																as Estado,
+     PlanesComerciales.Id_Asesor															as IdPersonal,
+     PlanesComerciales.OtroTipoSubtipo														as OtroTipoSubtipo,
+     PlanesComerciales.Novedad															as Novedad,
+	PlanesComerciales.TipoGestionEstrategia												     as TipoGestionEstrategia,
+	PlanesComerciales.Causal_NoCumple_Implementacion										     as Causal_NoCumple_Implementacion,
+     PlanesComerciales.CumpleImplementacion													as CumpleImplementacion				
+FROM
+[lib://COMP_DataMart (eficacia_admin_analitica)/SGI/Colombia/CENTRAL_CERVECERA/_PlanesComerciales.qvd]
+(qvd);
+
+
+AdicionMercaCentro_Tmp:
+LOAD 
+      Date(left(date(FECHA_INICIO,'DD/MM/YYYY'),10),'YYYY/MM/DD')					as FechaInicio,
+		year(FECHA_INICIO)&num(Month(FECHA_INICIO), '00')								as PeriodoInicio, 
+		Date(left(date(FECHA_FIN,'DD/MM/YYYY'),10),'YYYY/MM/DD')						as FechaFin,
+		year(FECHA_FIN)&num(Month(FECHA_FIN), '00')									as PeriodoFin, 
+     ID_PV										                         as IdPuntoVenta, 
+     ID_EVENTO									                              as IdEvento,
+     DATE(LEFT(FECHA_REPORTE, 10), 'YYYY/MM/DD')                                     as Fecha,
+     Capitalize(NOMBRE_EVENTO)					                              as Evento, 
+     SUBTIPO_IMPLEMENTACION						                              as SubTipoImplementacion, 
+     CANTIDAD									                              as Cantidad,  
+     Capitalize(MARCA)							                              as Marca,
+      ID_ASESOR_REPORTE							                              as IdPersonal,
+      CUMPLE_CON_LA_IMPLEMENTACION				                                   as CumpleImplementacion, 
+      CANTIDAD_IMPLEMENTACION					                                   as CantidadImplementacion,
+      OTRO_TIPO_SUBTIPO							                              as OtroTipoSubtipo,
+      CAUSAL_DE_NO_CUMPLIMIENTO_IMPL			                                   as Causal_NoCumple_Implementacion,
+      NOVEDAD									                              as Novedad
+FROM
+	[lib://COMP_Stage (eficacia_admin_analitica)/SGI/Colombia/CENTRAL_CERVECERA/Sh_AdicionMercaCentro.qvd]
+(qvd);
+
+RelacionParametrizacion_Tmp:
+LOAD
+	    SECUENCIA						as Secuencia,
+		ID_EVENTO						as IdEvento,
+		ID_SUBTIPO_IMPLEMENTACION		as IdSubTipoImplementacion,
+		NOMBRE_EVENTO					as Evento, 
+		FECHA_INICIO					as	_FECHA_INICIO, 
+		FECHA_FIN						as	_FECHA_FIN, 
+		ID_SUCURSAL						as IdPuntoVenta, 
+		CATEGORIA						as Categoria,
+		SUBCATEGORIA					as SubCategoria,
+		SUBTIPO_IMPLEMENTACION			as SubTipoImplementacion, 
+		CANTIDAD						as Cantidad,   
+		MARCA						as Marca,
+		ESTADO						as Estado
+FROM
+[lib://COMP_Stage (eficacia_admin_analitica)/SGI/Colombia/HEINEKEN/Parametrizacion_Planes.qvd]
+(qvd);
+
+NoConcatenate
+ExclusionPac_Tmp1:
+	LOAD 
+		SECUENCIA,
+		ID_EVENTO,
+		ID_PV,
+		ID_SUBTIPO_IMPLEMENTACION,
+		MARCA,
+		FECHA_INICIO,
+		FECHA_FIN,
+		CANTIDAD
+	FROM
+	[lib://COMP_Stage (eficacia_admin_analitica)/SGI/Colombia/CENTRAL_CERVECERA/Sh_ExclusionPac.qvd]
+	(qvd);
+
+NoConcatenate
+ExclusionPac_Tmp2:
+	LOAD 
+		SECUENCIA&ID_EVENTO&ID_PV&ID_SUBTIPO_IMPLEMENTACION&Capitalize(MARCA)&FECHA_INICIO&FECHA_FIN&CANTIDAD		as llaveExclusion
+	Resident ExclusionPac_Tmp1;
+	Drop table ExclusionPac_Tmp1;
+
+NoConcatenate
+RelacionParametrizacion_Tmp1:
+LOAD
+		Secuencia,
+		IdEvento,
+		IdSubTipoImplementacion,
+		Capitalize(Evento)														as Evento, 
+		Date(left(date(_FECHA_INICIO,'DD/MM/YYYY'),10),'YYYY/MM/DD')					as FechaInicio,
+		year(_FECHA_INICIO)&num(Month(_FECHA_INICIO), '00')							as PeriodoInicio, 
+		Date(left(date(_FECHA_FIN,'DD/MM/YYYY'),10),'YYYY/MM/DD')						as FechaFin,
+		year(_FECHA_FIN)&num(Month(_FECHA_FIN), '00')								as PeriodoFin, 
+		IdPuntoVenta, 
+		Categoria,
+		SubCategoria,
+		Capitalize(SubTipoImplementacion)											as SubTipoImplementacion, 
+		Cantidad,   
+		Capitalize(Marca)														as Marca,
+		Estado
+Resident RelacionParametrizacion_Tmp
+Where
+	$(Anno)$(Mes)>=year(_FECHA_INICIO)&num(Month(_FECHA_INICIO), '00') and $(Anno)$(Mes)<=year(_FECHA_FIN)&num(Month(_FECHA_FIN), '00')
+	And Marca<> 'SIN NEGOCIACIÓN';
+DROP Table RelacionParametrizacion_Tmp;
+
+Left Join
+LOAD
+	Fecha,
+	Year(Fecha)&Num(Month(Fecha), '00')		as Periodo, 
+    'SEMANA ' & Semana						as Semana
+Resident Semana_Tmp
+Where
+	Year(Fecha)&Num(Month(Fecha), '00')=$(Anno)$(Mes);
+DROP Table Semana_Tmp;
+
+NoConcatenate
+RelacionParametrizacion_Tmp2:
+LOAD
+		Secuencia,
+		IdEvento,
+		IdSubTipoImplementacion,
+		Evento, 
+		FechaInicio,
+		PeriodoInicio, 
+		FechaFin,
+		PeriodoFin, 
+		IdPuntoVenta, 
+		Categoria,
+		SubCategoria,
+		SubTipoImplementacion, 
+		Cantidad,   
+		Marca,
+		Estado,
+		Periodo,
+		Fecha, 
+		Semana,
+		If(Fecha>=FechaInicio and Fecha<=FechaFin, 1, 0)    as Flag
+Resident RelacionParametrizacion_Tmp1
+Where
+	not Exists(llaveExclusion,Secuencia&IdEvento&IdPuntoVenta&IdSubTipoImplementacion&Marca&FechaInicio&FechaFin&Cantidad);;
+DROP Table RelacionParametrizacion_Tmp1;
+Drop table ExclusionPac_Tmp2;
+
+NoConcatenate
+RelacionParametrizacion_Tmp3:
+LOAD
+		Secuencia,
+		IdEvento,
+		IdSubTipoImplementacion,
+		Evento, 
+		FechaInicio,
+		PeriodoInicio, 
+		FechaFin,
+		PeriodoFin, 
+		IdPuntoVenta, 
+		Categoria,
+		SubCategoria,
+		SubTipoImplementacion, 
+		Cantidad, 
+		Marca,
+		Estado,
+		Periodo,
+		Date(Max(Fecha), 'YYYY/MM/DD')			as FechaMaxPlanes, 
+		Semana
+Resident RelacionParametrizacion_Tmp2
+Where
+	Flag=1
+	Group By
+		Secuencia,
+		IdEvento,
+		IdSubTipoImplementacion,
+		Evento, 
+		FechaInicio,
+		PeriodoInicio, 
+		FechaFin,
+		PeriodoFin, 
+		IdPuntoVenta, 
+		Categoria,
+		SubCategoria,
+		SubTipoImplementacion, 
+		Cantidad,  
+		Marca,
+		Estado,
+		Periodo,
+		Semana;
+DROP Table RelacionParametrizacion_Tmp2;
+
+/**************** Transformación ****************/
+NoConcatenate
+/* +++ Ruteros +++ */
+Rutero_Tmp2:
+	LOAD
+		ID_REGISTRO								as Registro,
+		ID_PUNTO_VENTA							     as IdPuntoVenta,
+		Date(FECHA_DE_EJECUCION,'YYYY/MM/DD')	          as Fecha,
+		ID_PERSONAL								as IdPersonal,
+		ESTADO
+	Resident Rutero_Tmp1
+	Where  
+		ESTADO = 1
+	and Not WildMatch(ID_PERSONAL, 46468, 145723, 160381, 169336)
+	and wildmatch(Applymap('Map_Rol', ID_PERSONAL, Null()),'GESTOR', 'PROMOTOR HEINEKEN');
+	DROP Table Rutero_Tmp1;
+
+NoConcatenate
+Monitoreo_Tmp2:
+LOAD
+     PUNTO_VENTA_ID							                                             as IdPuntoVenta, 
+     ASESOR_ID								                                             as IdPersonal,
+     TIPO_RUTA								                                             as TipoRuta, 
+      DATE(LEFT(Date(FECHA, 'DD/MM/YYYY'),10), 'YYYY/MM/DD')                                   as Fecha,                                                   
+	Num(Date(LEFT(FECHA, 10), 'YYYY/MM/DD'), '#######')                                       as FechaNumero,
+     Applymap('Map_Rol', ASESOR_ID, Null())                                                    as Rol,
+     ESTADO									                                        as Estado, 
+     PLANES_COMERCIALES						                                             as PlanesComerciales,
+     PUNTO_VENTA_ID&Num(Date(LEFT(FECHA, 10), 'YYYY/MM/DD'), '#######')&PLANES_COMERCIALES     as Concatenado,
+     '0'                                                                                       as Validacion
+Resident Monitoreo_Tmp1;
+DROP Table Monitoreo_Tmp1;
+
+NoConcatenate
+Monitoreo_Tmp3:
+LOAD
+	Concatenado,
+	Rol,
+	TipoRuta,
+	IdPersonal, 
+     IdPuntoVenta, 
+     Fecha,
+	FechaNumero,
+	Estado,
+     PlanesComerciales,
+     If(Concatenado=Peek(Concatenado), '0', '1')			as Validacion
+Resident Monitoreo_Tmp2
+Order By
+	TipoRuta,
+	Rol,
+	Estado,
+	PlanesComerciales;
+DROP Table Monitoreo_Tmp2;
+
+NoConcatenate
+Monitoreo_Tmp4:
+LOAD
+	IdPuntoVenta&IdPersonal&Fecha		     as CK.Key,
+	IdPersonal, 
+     IdPuntoVenta, 
+     Fecha,
+	Estado,
+	Concatenado,
+     PlanesComerciales,
+     Validacion
+Resident Monitoreo_Tmp3
+Where 
+TipoRuta ='AGREGADO'
+And Estado<>'NOVEDAD'
+And WildMatch(Rol, 'GESTOR', 'PROMOTOR HEINEKEN');
+DROP Table Monitoreo_Tmp3;
+
+
+
+NoConcatenate
+CumpleVisita_Tmp1:
+     LOAD
+          IdPuntoVenta&IdPersonal&Fecha		     as CK.Key,
+          IdPuntoVenta,  
+          IdPersonal,
+          Fecha,
+          'Cumple Visita'					as Concepto
+     Resident Rutero_Tmp2;
+
+Inner Join
+     LOAD
+          IdPuntoVenta&IdPersonal&Fecha		     as CK.Key,
+          IdPuntoVenta,  
+          IdPersonal,
+          Fecha,
+          'Cumple Visita'					as Concepto
+     Resident Monitoreo_Tmp4;
+
+/*---------*/
+NoConcatenate
+Rutero_Tmp:
+     LOAD
+          IdPuntoVenta&IdPersonal&Fecha		     as CK.KeyRutero
+     Resident Rutero_Tmp2;
+
+NoConcatenate
+ExtraRuta_Tmp1:
+     LOAD
+          IdPuntoVenta&IdPersonal&Fecha		     as CK.Key,
+          IdPuntoVenta,  
+          IdPersonal,
+          Fecha,
+          'Extra Ruta'						as Concepto
+     Resident Monitoreo_Tmp4
+     Where
+          Not Exists(CK.KeyRutero,IdPuntoVenta&IdPersonal&Fecha);
+     DROP Table Rutero_Tmp;
+     
+/*---------*/
+NoConcatenate
+PlaneadosVisitar_Tmp:
+     LOAD
+          IdPuntoVenta&IdPersonal&Fecha		     as CK.Key,
+          IdPuntoVenta,  
+          IdPersonal,
+          Fecha,
+          'Visitas Planeadas'				     as Concepto
+     Resident Rutero_Tmp2
+     Where
+          Fecha >= Date(Today(),'YYYY/MM/DD');
+
+/*---------*/
+NoConcatenate
+RuteroVencido_Tmp1:
+     LOAD
+          IdPuntoVenta&IdPersonal&Fecha		     as CK.Key,
+          IdPuntoVenta,  
+          IdPersonal,
+          Fecha
+     Resident Rutero_Tmp2
+     Where 
+          Fecha < Date(Today(),'YYYY/MM/DD');
+
+NoConcatenate
+Monitoreo_Tmp:
+     LOAD
+          IdPuntoVenta&IdPersonal&Fecha		     as CK.Visitas
+     Resident Monitoreo_Tmp4;
+
+NoConcatenate
+RuteroVencido_Tmp2:
+     LOAD
+          CK.Key,
+          IdPuntoVenta,  
+          IdPersonal,
+          Fecha,
+          'Visitas No ejecutadas'			     as Concepto
+     Resident RuteroVencido_Tmp1
+     Where
+          Not Exists(CK.Visitas,CK.Key);
+     DROP Table RuteroVencido_Tmp1;
+     DROP Table Monitoreo_Tmp;
+     
+NoConcatenate
+CoberturaPlanes_Tmp1:
+     LOAD
+          CK.Key,
+          IdPuntoVenta,  
+          IdPersonal,
+          Fecha,
+          Concepto
+     Resident CumpleVisita_Tmp1;
+     DROP Table CumpleVisita_Tmp1;
+
+Concatenate
+     LOAD
+          CK.Key,
+          IdPuntoVenta,  
+          IdPersonal,
+          Fecha,
+          Concepto
+     Resident ExtraRuta_Tmp1;
+     DROP Table ExtraRuta_Tmp1;
+
+Concatenate
+     LOAD
+          CK.Key,
+          IdPuntoVenta,  
+          IdPersonal,
+          Fecha,
+          Concepto
+     Resident PlaneadosVisitar_Tmp;
+     DROP Table PlaneadosVisitar_Tmp;
+     
+Concatenate
+     LOAD
+          CK.Key,
+          IdPuntoVenta,  
+          IdPersonal,
+          Fecha,
+          Concepto
+     Resident RuteroVencido_Tmp2;
+     DROP Table RuteroVencido_Tmp2;
+
+NoConcatenate
+CoberturaPlanes_Tmp2:
+     LOAD
+          CK.Key,
+          IdPuntoVenta,  
+          IdPersonal,
+          Fecha,
+          Year(Fecha)&Num(Month(Fecha), '00') 									as Periodo,
+          'SEMANA ' & Applymap('Map_Semanas', Fecha, Null())                              as Semana,
+          Concepto
+     Resident CoberturaPlanes_Tmp1;
+     DROP Table CoberturaPlanes_Tmp1;
+
+Left Join (CoberturaPlanes_Tmp2)
+     LOAD
+          IdPuntoVenta&IdPersonal&Fecha		as CK.Key,
+          Estado,
+          Validacion
+     Resident Monitoreo_Tmp4;
+     DROP Table Monitoreo_Tmp4;
+
+Left Join(CoberturaPlanes_Tmp2)
+     LOAD
+          IdPuntoVenta&IdPersonal&Fecha		as CK.Key,
+          FirstValue(Registro)			as Registro
+     Resident Rutero_Tmp2
+     Group By
+          IdPuntoVenta,  
+          IdPersonal,
+          Fecha;
+     DROP Table Rutero_Tmp2;
+       
+NoConcatenate
+PlanesComerciales_Tmp1:
+LOAD
+	IdPuntoVenta, 
+     Cantidad,
+     _Fecha														as FechaMaxPlanes,
+     FechaHora,
+     PeriodoCaptura												     as Periodo,
+     Foto,
+     IdPersonal,
+     CantidadImplementacion,
+     Causal_NoCumple_Implementacion,
+     Novedad,
+     OtroTipoSubtipo,
+	TipoGestionEstrategia,
+     SubTipoImplementacion,
+     Evento,
+     Marca,
+     CumpleImplementacion,
+     'SEMANA ' & Applymap('Map_Semanas', _Fecha, Null())                    	as Semana
+Resident PlanesComerciales_Tmp
+Where
+Marca<>'Sin Negociación';
+DROP Table PlanesComerciales_Tmp; 
+
+
+
+NoConcatenate
+PlanesComerciales_Tmp2:
+LOAD
+	IdPuntoVenta,
+	Semana,
+	Periodo,
+	Marca,
+     Evento,
+	SubTipoImplementacion,
+	Avg(Cantidad)		                         as Cantidad
+   Resident PlanesComerciales_Tmp1
+     Group By
+     		IdPuntoVenta,
+     		Marca,
+               Evento,
+			SubTipoImplementacion,
+     		Periodo,
+     		Semana;
+  Left Join
+  LOAD
+  	IdPuntoVenta, 
+     Cantidad,
+     FechaMaxPlanes,
+     Periodo,
+     CantidadImplementacion,
+     Causal_NoCumple_Implementacion,
+     Novedad,
+     IdPersonal,
+     Foto,
+     OtroTipoSubtipo,
+	TipoGestionEstrategia,
+     SubTipoImplementacion,
+     Evento,
+     FechaHora,
+     Marca,
+     CumpleImplementacion,
+     Semana
+Resident PlanesComerciales_Tmp1;
+DROP Table PlanesComerciales_Tmp1;
+
+NoConcatenate
+CoberturaPlanes_Tmp3:
+     LOAD 
+          IdPuntoVenta,  
+          Max(Fecha)			as Fecha,
+          Periodo,
+          Semana
+     Resident CoberturaPlanes_Tmp2
+     Where
+     Fecha<=Today()
+     Group By
+     	IdPuntoVenta,  
+          Periodo,
+          Semana;
+Left Join
+LOAD
+		IdPuntoVenta,  
+          Periodo,
+          IdPersonal,
+          Fecha,
+          Semana
+Resident CoberturaPlanes_Tmp2;
+Drop Table CoberturaPlanes_Tmp2;
+
+NoConcatenate
+CoberturaPlanes_Tmp4:
+LOAD
+	   IdPuntoVenta&Periodo&Semana				as Llave,
+        IdPuntoVenta,  
+        Periodo,
+        Fecha,
+        Semana
+Resident CoberturaPlanes_Tmp3;
+DROP Table CoberturaPlanes_Tmp3;
+
+NoConcatenate
+PlanesComerciales_Tmp3:
+LOAD
+	IdPuntoVenta, 
+    Periodo,
+	FechaMaxPlanes							as Fecha,
+     CantidadImplementacion,
+     OtroTipoSubtipo,
+     Novedad,
+     FechaHora,
+	 TipoGestionEstrategia,
+     SubTipoImplementacion,
+     Causal_NoCumple_Implementacion,
+     Evento,
+     IdPersonal,
+     Foto,
+     Marca,
+     Cantidad,
+     CumpleImplementacion,
+   	Semana
+Resident PlanesComerciales_Tmp2
+Where
+	Exists(Llave, IdPuntoVenta&Periodo&Semana);
+DROP Table PlanesComerciales_Tmp2;
+DROP Table CoberturaPlanes_Tmp4;
+
+NoConcatenate
+CoberturaPlanes_Tmp5:
+LOAD
+         IdPuntoVenta, 
+         IdPersonal,
+         Fecha,
+         Semana
+Resident PlanesComerciales_Tmp3;
+
+Right Join 
+LOAD 
+		Periodo,
+		PeriodoInicio, 
+		PeriodoFin,
+		Evento, 
+		IdPuntoVenta, 
+		FechaInicio,
+		FechaFin,
+		SubTipoImplementacion,  
+		Marca,
+		Cantidad
+Resident RelacionParametrizacion_Tmp3;
+DROP Table RelacionParametrizacion_Tmp3;
+
+
+NoConcatenate
+Parametrizacion_Tmp:
+LOAD
+		Evento, 
+		Fecha,
+		IdPuntoVenta, 
+		Periodo,
+		FechaInicio,
+		FechaFin,
+		Cantidad,
+		IdPersonal,
+		PeriodoInicio, 
+		PeriodoFin,
+		SubTipoImplementacion,  
+		Marca,
+		Semana,
+		If((Periodo>=PeriodoInicio and Periodo<=PeriodoFin) Or IsNull(Fecha), 1, 0)			as Flag
+Resident CoberturaPlanes_Tmp5;
+DROP Table CoberturaPlanes_Tmp5;
+
+NoConcatenate
+CoberturaPlanes_Tmp6:
+LOAD
+	    IdPuntoVenta, 
+         Fecha,
+         Periodo,
+         Semana,
+         Cantidad,
+         IdPersonal,
+	    CantidadImplementacion,
+         FechaHora,
+         Evento,
+         OtroTipoSubtipo,
+	    TipoGestionEstrategia,
+	    Causal_NoCumple_Implementacion,
+	    Novedad,
+	    Foto,
+         CumpleImplementacion,
+   	    Marca,
+         SubTipoImplementacion
+Resident PlanesComerciales_Tmp3;
+DROP Table PlanesComerciales_Tmp3;
+
+Outer Join
+LOAD 
+		Evento, 
+		Fecha,
+		IdPuntoVenta, 
+		IdPersonal,
+		Periodo,
+		FechaInicio,
+		FechaFin,
+		SubTipoImplementacion,  
+		Marca,
+		Cantidad,
+		Semana,
+		Flag
+Resident Parametrizacion_Tmp;
+DROP Table Parametrizacion_Tmp;
+
+NoConcatenate
+CoberturaPlanes_Tmp7:
+LOAD Distinct
+    IdPuntoVenta, 
+    IdPersonal,
+    Fecha,
+    Periodo,
+    Semana,
+    FechaInicio,
+    Cantidad,
+    FechaFin,
+    If(IsNull(FechaHora), Fecha, FechaHora)		  as FechaHora,
+    Evento,
+    CantidadImplementacion,
+    OtroTipoSubtipo,
+    TipoGestionEstrategia,
+    Causal_NoCumple_Implementacion,
+    Novedad,
+    Foto,
+    CumpleImplementacion,
+    Marca,
+    SubTipoImplementacion,
+    If(Fecha>=FechaInicio and Fecha<=FechaFin, 1, 0) as Vigencia
+Resident CoberturaPlanes_Tmp6
+Where
+Not(IsNull(CumpleImplementacion));
+Drop table CoberturaPlanes_Tmp6;
+
+
+NoConcatenate
+CoberturaPlanes_Tmp8:
+     LOAD Distinct
+          IdPuntoVenta,  
+          Max(Fecha)								 as Fecha,
+          Periodo,
+          Semana
+     Resident CoberturaPlanes_Tmp7
+     Group By
+     	IdPuntoVenta,
+     	Periodo,
+          Semana;
+Left Join
+LOAD 
+	    IdPuntoVenta, 
+         IdPersonal,
+         Fecha,
+         Periodo,
+         Semana,
+         FechaInicio,
+         Cantidad,
+         FechaFin,
+         Evento,
+         FechaHora,
+         CantidadImplementacion,
+         OtroTipoSubtipo,
+         TipoGestionEstrategia,
+         Causal_NoCumple_Implementacion,
+         Novedad,
+         Foto,
+         CumpleImplementacion,
+    	    Marca,
+    	    Vigencia,
+         SubTipoImplementacion
+Resident CoberturaPlanes_Tmp7;
+Drop Table CoberturaPlanes_Tmp7;
+
+NoConcatenate
+CoberturaPlanes_Tmp9:
+     LOAD Distinct
+          IdPuntoVenta,  
+          Max(FechaHora)                             as FechaHora,
+          Max(FechaInicio)							 as FechaInicio,
+          Periodo,
+          Semana,
+          Evento
+     Resident CoberturaPlanes_Tmp8
+     Group By
+     	IdPuntoVenta,
+     	Evento,
+     	Periodo,
+          Semana;
+Left Join
+LOAD 
+	    IdPuntoVenta, 
+         IdPersonal,
+         Fecha,
+         Periodo,
+         Semana,
+         FechaInicio,
+         Cantidad,
+         FechaFin,
+         Evento,
+         FechaHora,
+         CantidadImplementacion,
+         OtroTipoSubtipo,
+         TipoGestionEstrategia,
+         Causal_NoCumple_Implementacion,
+         Novedad,
+         Foto,
+         CumpleImplementacion,
+    	    Marca,
+    	    Vigencia,
+         SubTipoImplementacion
+Resident CoberturaPlanes_Tmp8;
+Drop Table CoberturaPlanes_Tmp8;
+
+//Se Adiciona Evento Mercacentro//
+NoConcatenate
+CoberturaPlanes_Tmp10:
+LOAD
+    IdPuntoVenta, 
+    IdPersonal,
+    Fecha,
+    Periodo,
+    Semana,
+    FechaInicio,
+    Cantidad,
+    FechaFin,
+    Evento,
+    CantidadImplementacion						as Captura,
+    OtroTipoSubtipo,
+    Causal_NoCumple_Implementacion,
+    Novedad,
+    Foto,
+    CumpleImplementacion,
+    Marca,
+    SubTipoImplementacion,
+    Vigencia
+Resident CoberturaPlanes_Tmp9;
+Drop table CoberturaPlanes_Tmp9;
+
+Concatenate
+Load 
+     IdPuntoVenta, 
+	Evento,
+     Fecha,
+     'SEMANA ' & Applymap('Map_Semanas', Fecha, Null())                         as Semana,
+     Year(Fecha)&Num(Month(Fecha), '00')								as Periodo,  
+     If(Fecha>=FechaInicio and Fecha<=FechaFin, 1, 0) 					     as Vigencia,
+     Marca, 
+     SubTipoImplementacion, 
+     Cantidad,
+	 FechaInicio, 
+     FechaFin,
+     IdPersonal,
+     CumpleImplementacion, 
+     CantidadImplementacion											as Captura,
+     OtroTipoSubtipo,
+     Causal_NoCumple_Implementacion,
+     Novedad
+Resident AdicionMercaCentro_Tmp
+WHERE NOT ((Evento = 'Exhibicion Pac Mercacentro|Marzo 2024') AND (IdPuntoVenta = '1877824') AND (Fecha = '16/03/2024'));
+DROP Table AdicionMercaCentro_Tmp;
+
+// esta regla ya se encontraba mas arriba, pero ya que un conjunto mas abajo agrupaba tambien por el max fecha Inicio hacia que se eliminara la informacion a agregar, por lo cual se realiza nuevamente la regla//
+NoConcatenate
+CoberturaPlanes_Tmp11:
+     LOAD Distinct
+          IdPuntoVenta,  
+          Max(Fecha)								 as Fecha,
+          Periodo,
+          Semana
+     Resident CoberturaPlanes_Tmp10
+     Group By
+     	IdPuntoVenta,
+     	Periodo,
+          Semana;
+Left Join
+LOAD 
+	    IdPuntoVenta, 
+         IdPersonal,
+         Fecha,
+         Periodo,
+         Semana,
+         FechaInicio,
+         Cantidad,
+         FechaFin,
+         Evento,
+         Captura,
+         OtroTipoSubtipo,
+         Causal_NoCumple_Implementacion,
+         Novedad,
+         Foto,
+         CumpleImplementacion,
+    	    Marca,
+    	    Vigencia,
+         SubTipoImplementacion
+Resident CoberturaPlanes_Tmp10;
+Drop Table CoberturaPlanes_Tmp10;
+
+NoConcatenate 
+CoberturaPlanes_Tmp12:
+LOAD
+    IdPuntoVenta, 
+    IdPersonal,
+    Fecha,
+    Periodo,
+    Semana,
+    FechaInicio,
+    Cantidad,
+    FechaFin,
+    Evento,
+    Captura,
+    OtroTipoSubtipo,
+    Causal_NoCumple_Implementacion,
+    Novedad,
+    CumpleImplementacion,
+    Marca,
+    SubTipoImplementacion,
+    Vigencia,
+    LastValue(Foto)					as Foto
+Resident CoberturaPlanes_Tmp11
+Group By
+    IdPuntoVenta, 
+    IdPersonal,
+    Fecha,
+    Periodo,
+    Semana,
+    FechaInicio,
+    Cantidad,
+    FechaFin,
+    Evento,
+    Captura,
+    OtroTipoSubtipo,
+    Causal_NoCumple_Implementacion,
+    Novedad,
+    CumpleImplementacion,
+    Marca,
+    Vigencia,
+    SubTipoImplementacion;
+DROP Table CoberturaPlanes_Tmp11;
+
+
+NoConcatenate
+CoberturaPlanes_Tmp13:
+LOAD
+    IdPuntoVenta, 
+    IdPersonal,
+    Fecha,
+    Periodo,
+    Semana,
+    FechaInicio,
+    Cantidad,
+    FechaFin,
+    Evento,
+    Captura,
+    OtroTipoSubtipo,
+    Causal_NoCumple_Implementacion,
+    Novedad,
+    Foto,
+    CumpleImplementacion,
+    Marca,
+    SubTipoImplementacion,
+    If(CumpleImplementacion<>'NO', Captura, 0)  									as ValidacionImpl,
+    If(CumpleImplementacion='NO', Cantidad, 0)  									as ValidacionNo
+Resident CoberturaPlanes_Tmp12
+Where
+     Vigencia=1;
+Drop table CoberturaPlanes_Tmp12;
+
+NoConcatenate
+CoberturaPlanes_Tmp14:
+LOAD
+    IdPuntoVenta, 
+    IdPersonal,
+    Fecha,
+    Periodo,
+    Semana,
+    FechaInicio,
+    Cantidad,
+    FechaFin,
+    Evento,
+    Foto,
+    Captura,
+    OtroTipoSubtipo,
+    Causal_NoCumple_Implementacion,
+    Novedad,
+    CumpleImplementacion,
+    Marca,
+    SubTipoImplementacion,
+    Capitalize(Applymap('Map_Cadena', IdPuntoVenta, Null()))	                   as Cadena,
+    If(IsNull(ValidacionImpl),0, ValidacionImpl)		                             as ValidacionImpl,
+    ValidacionNo
+Resident CoberturaPlanes_Tmp13;
+Drop table CoberturaPlanes_Tmp13;
+
+NoConcatenate
+CoberturaPlanes_Tmp15:
+LOAD
+    IdPuntoVenta, 
+    IdPersonal,
+    Fecha,
+    Periodo,
+    Semana,
+    FechaInicio,
+    Cantidad,
+    FechaFin,
+    Evento,
+    Foto,
+    Captura,
+    OtroTipoSubtipo,
+    Causal_NoCumple_Implementacion,
+    Capitalize(Novedad)                                                               as Novedad,
+    CumpleImplementacion,
+    Capitalize(Applymap('Map_Pdv', IdPuntoVenta, Null()))	                          as Pdv,
+    Marca,
+    SubTipoImplementacion,
+    ValidacionImpl,
+    ValidacionNo,
+    Applymap('Map_Regional', IdPuntoVenta, Null())                                     as Region,
+    Applymap('Map_ValorExhibiciones', SubTipoImplementacion, Null())		            as ValorExhibiciones,
+    Cadena,
+    ValidacionImpl+ValidacionNo                                   as ValidacionCompleta,
+    If(Evento Like 'Exhibicion Pac*' Or Evento like 'Exhibiciones Pac*' Or Evento like 'Plan Comercial*', 'Evento Especial', 'Evento')     as ExhibicionEspecial
+Resident CoberturaPlanes_Tmp14;
+Drop table CoberturaPlanes_Tmp14;
+	
+/*---------*/
+NoConcatenate
+CoberturaPlanes:
+     LOAD Distinct
+    IdPuntoVenta&'-'&IdPersonal&'-'&DATE(LEFT(Date(Fecha, 'DD/MM/YYYY'),10), 'YYYY/MM/DD')    	          as CK.Key1,
+    IdPuntoVenta								as CoberturaPlanes.IdPuntoVenta, 
+    IdPersonal									as CoberturaPlanes.IdPersonal,
+    Fecha										as CoberturaPlanes.Fecha,
+    Periodo									as CoberturaPlanes.Periodo,
+    Semana									as CoberturaPlanes.Semana,
+    FechaInicio								as CoberturaPlanes.FechaInicio,
+    Captura									as CoberturaPlanes.Captura,
+    Cantidad									as CoberturaPlanes.Cantidad,
+    FechaFin									as CoberturaPlanes.FechaFin,
+    Evento									as CoberturaPlanes.Evento,
+    Foto                                               as CoberturaPlanes.Foto,
+    CumpleImplementacion						     as CoberturaPlanes.CumpleImplementacion,
+    OtroTipoSubtipo								as CoberturaPlanes.OtroTipoSubtipo,
+    Causal_NoCumple_Implementacion				     as CoberturaPlanes.Causal_NoCumple_Implementacion,
+    Novedad									as CoberturaPlanes.Novedad,
+    Marca									     as CoberturaPlanes.Marca,
+    Region                                             as CoberturaPlanes.Regional,
+    Cadena                                             as CoberturaPlanes.Cadena,
+    ExhibicionEspecial                                 as CoberturaPlanes.ExhibicionEspecial,
+    SubTipoImplementacion						as CoberturaPlanes.SubTipoImplementacion,
+    ValidacionImpl								as CoberturaPlanes.ValidacionImpl,
+    ValidacionNo								as CoberturaPlanes.ValidacionNo,
+    ValidacionCompleta							as CoberturaPlanes.ValidacionCompleta,
+    ValorExhibiciones*ValidacionCompleta		     as CoberturaPlanes.ExhibicionCompleta,		
+    ValidacionImpl/Cantidad						as CoberturaPlanes.Cumplimiento
+ Resident CoberturaPlanes_Tmp15;
+ Drop Table CoberturaPlanes_Tmp15;
+
+STORE CoberturaPlanes INTO [lib://COMP_DataMart (eficacia_admin_analitica)/SGI/Colombia/CENTRAL_CERVECERA/_CoberturaPlanes_$(Anno)$(Mes).qvd];
+Drop Table  CoberturaPlanes;

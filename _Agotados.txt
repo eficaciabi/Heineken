@@ -1,0 +1,192 @@
+
+Agotados_Tmp1:
+    LOAD 
+        AGOTADO                 as Agotado,
+        PRESENTE                as Presente,
+        NO_MANEJANTE            as No_Manejante,
+        CAUSAL_AGOTADO          as Causal,
+        SUB_CAUSAL_AGOTADO      as SubCausal,
+        ID_PRODUCTO             as Id_Producto,
+        ID_SUCURSAL             as Id_Sucursal,
+        ID_ASESOR              as Id_Usuario,
+        FECHA		        as _Fecha,
+        ID_REGISTRO             as Id_Registro
+    FROM
+    [lib://COMP_Stage (eficacia_admin_analitica)/SGI/Colombia/HEINEKEN/Agotados_$(Anno)$(Mes)*.qvd]
+    (qvd);
+
+/*---------*/
+ExclusionRegistros_Tmp:
+LOAD 
+	 IdRegistro
+FROM 
+    [lib://COMP_Stage (eficacia_admin_analitica)/SGI/Colombia/CENTRAL_CERVECERA/Sh_ExclusionRegistros.qvd] 
+(qvd);
+
+/*---------*/
+Map_Cedi:
+    Mapping	
+        LOAD
+            PUNTO_VENTA_ID			as Id_PuntoVenta,
+            NIVEL3					as Cedi	
+        FROM 
+        [lib://COMP_Stage (eficacia_admin_analitica)/SGI/Colombia/HEINEKEN/IPV_PuntoVenta.qvd]
+        (qvd);
+
+/*---------*/
+NoConcatenate
+Agotados_Tmp2:
+LOAD
+	    Agotado,
+        Presente,
+        No_Manejante,
+        Causal,
+        SubCausal,
+        Id_Producto,
+        Id_Sucursal,
+        Id_Usuario,
+        _Fecha,
+        Id_Registro
+    Resident Agotados_Tmp1
+    where 
+		Not Exists(IdRegistro, Id_Registro);
+    DROP Table Agotados_Tmp1;
+    DROP Table ExclusionRegistros_Tmp;
+
+NoConcatenate
+Agotados_Tmp3:
+    LOAD
+        Agotado,
+        Presente,
+        No_Manejante,
+        Capitalize(Causal)                                              as Causal,
+        Capitalize(SubCausal)                                           as SubCausal,
+        Id_Producto,
+        Id_Sucursal,
+        Id_Usuario,
+        Date(left(date(_Fecha,'DD/MM/YYYY'),10),'YYYY/MM/DD')	        as Fecha,
+        Year(Date(left(date(_Fecha,'DD/MM/YYYY'),10),'YYYY/MM/DD'))&Num(Month(Date(left(date(_Fecha,'DD/MM/YYYY'),10),'YYYY/MM/DD')),'00')		as Periodo,
+        Id_Registro,
+        Applymap('Map_Marca', Id_Producto, Null())		                as Marca,
+        Capitalize(Applymap('Map_Cadena', Id_Sucursal, Null()))			 as Cadena, 
+        Applymap('Map_Ciudad', Id_Sucursal, Null())		                as Ciudad,
+        Applymap('Map_Descripcion', Id_Sucursal, Null())&Id_Producto	as Llave,	
+        'Agotados'          		                                    as Concepto
+    Resident Agotados_Tmp2
+    where 
+        not WildMatch(Id_Usuario, '46468', '145723', '160381','169336')
+    and not WildMatch(Causal, 'No Manejante') or IsNull(Causal)
+    and Date(left(date(_Fecha,'DD/MM/YYYY'),10),'YYYY/MM/DD') > '2022/12/31';
+    DROP Table Agotados_Tmp2;
+    
+NoConcatenate
+Agotados_Tmp4:
+    LOAD
+        Agotado,
+        Presente,
+        No_Manejante,
+        Causal,
+        SubCausal,
+        Id_Producto,
+        Id_Sucursal,
+        Id_Usuario,
+        Fecha,
+        Id_Registro,
+        Cadena,
+        Marca,
+        Ciudad,
+        Periodo,
+        PurgeChar(Llave,' ')		as Llave, 	
+        Concepto
+    Resident Agotados_Tmp3
+    where 
+    	((Marca = 'Kunstmann') AND (Cadena = 'Exito' OR Cadena = 'Exito Express' OR Cadena = 'Carulla' OR Cadena = 'Carulla Express' OR Cadena = 'Surtimayorista' OR Cadena = 'Superinter' OR Cadena = 'Surtimax' OR Cadena = 'Surtimayoristas') 
+    OR (Marca <> 'Kunstmann'))
+    
+    AND
+((Marca = 'Central') AND (Cadena = 'Exito' OR Cadena = 'Exito Express' OR Cadena = 'Carulla' OR Cadena = 'Carulla Express' OR Cadena = 'Olimpica' OR Cadena = 'Superinter' OR Cadena = 'Surtimax' OR Cadena = 'Surtimayorista' OR Cadena = 'Surtimayoristas' OR Cadena = 'Colsubsidio') 
+OR (Marca <> 'Central'))
+
+ AND
+((Marca = 'Tecate') AND (Periodo >= '202312') And (Cadena = 'Olimpica') OR (Marca <> 'Tecate'))
+
+AND
+((Id_Producto= '76676') And (Cadena= 'Olimpica') OR (Id_Producto <> '76676'))
+
+And wildmatch(Applymap('Map_Rol', Id_Usuario, Null()), 'GESTOR', 'PROMOTOR HEINEKEN');
+    DROP Table Agotados_Tmp3;
+
+NoConcatenate
+Agotados_Tmp5:
+  	LOAD
+        Llave,
+    	Id_Producto,
+        Agotado,
+        Presente,
+        No_Manejante,
+        Causal,
+        SubCausal,
+        Id_Sucursal,
+        Cadena,
+        Id_Usuario,
+        Marca,
+        Fecha,
+        Id_Registro,
+        Applymap('Map_PesoAgotados', Llave, Null())		        as Peso,
+        Concepto,
+        Applymap('Map_Cedi', Id_Sucursal, Null())		        as Cedi,
+	    'BOGOTÁ'           as Ciudad
+	Resident Agotados_Tmp4
+	Where 
+		Marca ='Andes';
+  
+Concatenate
+  	LOAD
+        Llave,
+    	Id_Producto,
+        Agotado,
+        Presente,
+        No_Manejante,
+        Causal,
+        SubCausal,
+        Id_Sucursal,
+        Id_Usuario,
+        Fecha,
+        Cadena,
+        Marca,
+        Id_Registro,
+        Applymap('Map_PesoAgotados', Llave, Null())		        as Peso,
+        Concepto,
+        Applymap('Map_Cedi', Id_Sucursal, Null())		        as Cedi,
+	    Ciudad
+	Resident Agotados_Tmp4
+	Where 
+		Marca <> 'Andes';
+	DROP Table Agotados_Tmp4;
+/*---------*/
+NoConcatenate
+Agotados:
+    LOAD
+        Id_Sucursal&'-'&Id_Usuario&'-'&Id_Producto&'-'&Fecha    as CK.Key2,
+        Agotado													as Agotados.Agotado,
+        Presente												as Agotados.Presente,
+        No_Manejante											as Agotados.No_Manejante,
+        If(Presente=1,'Presente','Agotado')					    as Agotados.Causal,
+        SubCausal												as Agotados.SubCausal,
+        Llave                                                   as Agotados.Llave,
+        Peso                                                    as Agotados.Peso,
+        Id_Producto												as Agotados.Id_Producto,
+        Id_Sucursal												as Agotados.Id_Sucursal,
+        Id_Usuario												as Agotados.Id_Usuario,
+        Fecha													as Agotados.Fecha,
+        'SEMANA ' & Applymap('Map_Semanas', Fecha, Null())        as Agotados.Semana,
+        If(Presente=1, Presente*Peso, Presente)                 as Agotados.PresenteModerno,
+        If(Agotado=1, Agotado*Peso, Agotado)					as Agotados.AgotadosModerno,
+        Id_Registro												as Agotados.Id_Registro,
+        Concepto                								as Agotados.Concepto,
+        Cedi		                                            as Agotados.Cedi
+    Resident Agotados_Tmp5;
+    DROP Table Agotados_Tmp5;
+
+STORE Agotados INTO  [lib://COMP_DataMart (eficacia_admin_analitica)/SGI/Colombia/CENTRAL_CERVECERA/_Agotados_$(Anno)$(Mes).qvd];
+Drop Table Agotados;

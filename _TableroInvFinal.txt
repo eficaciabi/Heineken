@@ -1,0 +1,369 @@
+
+ExhibicionesValor_Tmp:
+LOAD 
+	 Cadena,
+     Id_PuntoVenta, 
+     Marca,
+     Replace(Subtipo_Actividad, 'Estiba/Mt2', 'Estiba')	as Subtipo_Actividad,
+     Valor                                                  as ValorExhibiciones
+FROM
+[lib://COMP_Stage (eficacia_admin_analitica)/SGI/Colombia/CENTRAL_CERVECERA/Sh_ExhibicionesValor.qvd]
+(qvd);
+
+
+PlanesValor_Tmp:
+LOAD 
+	Cadena,
+     Id_PuntoVenta, 
+     Marca,
+     Replace(Subtipo_Actividad, 'Estiba/Mt2', 'Estiba')	as Subtipo_Actividad,
+     Valor									     as ValorPlanes
+FROM
+[lib://COMP_Stage (eficacia_admin_analitica)/SGI/Colombia/CENTRAL_CERVECERA/Sh_ExhibicionesValor.qvd]
+(qvd);
+
+
+				
+Inventario_Tmp:    
+LOAD 
+ 	Id_PuntoVenta, 
+     Marca, 
+     Inventario,
+     ProgRutero,			
+      Date(FechaActualizacion, 'YYYY/MM/DD')		as FechaActualizacion
+FROM
+[lib://COMP_Stage (eficacia_admin_analitica)/SGI/Colombia/CENTRAL_CERVECERA/Sh_Inventario.qvd]
+(qvd);
+
+/*-------------*/
+Planes_Comerciales_Tmp1:
+LOAD 
+     CoberturaPlanes.IdPuntoVenta                      as Id_PuntoVenta, 
+     CoberturaPlanes.IdPersonal                        as Id_Usuario, 
+     CoberturaPlanes.Fecha                             as Fecha, 
+     CoberturaPlanes.Periodo                           as Periodo,
+     CoberturaPlanes.Evento                            as EventoPlanes, 
+     CoberturaPlanes.Marca                             as Marca,
+     CoberturaPlanes.Cantidad                          as Cantidad_PC,
+     CoberturaPlanes.ValidacionImpl                    as Implementacion_PC,
+     CoberturaPlanes.SubTipoImplementacion			   as SubtipoImplementacion,
+     CoberturaPlanes.CumpleImplementacion              as  CumpleImplementacion_PC, 
+     CoberturaPlanes.OtroTipoSubtipo                   as OtroTipoSubtipo_PC, 
+     CoberturaPlanes.Causal_NoCumple_Implementacion    as Causal_NoCumple_Implementacion_PC 
+    
+FROM
+[lib://COMP_DataMart (eficacia_admin_analitica)/SGI/Colombia/CENTRAL_CERVECERA/_CoberturaPlanes_*.qvd]
+(qvd);
+
+
+///*-------------*/
+Exhibiciones_Tmp1:
+LOAD 
+     CK.Key1, 
+     Exhibiciones.Marca						as Marca, 
+     Exhibiciones.Tipo_Actividad			as TipoActividad, 
+     Exhibiciones.Id_Sucursal				as Id_PuntoVenta, 
+     Exhibiciones.Fecha						as Fecha, 
+     Exhibiciones.Subtipo_Actividad			as Subtipo_Actividad,
+     Exhibiciones.ID_Registro				as ID_Registro
+FROM
+[lib://COMP_DataMart (eficacia_admin_analitica)/SGI/Colombia/CENTRAL_CERVECERA/_Exhibiciones_*.qvd]
+(qvd);
+//
+//
+/////*-----------------------------------------------------------------*/	
+/////*--------------------*COMIENZA TRANSFORMACIÓN*--------------------*/
+/////*-----------------------------------------------------------------*/
+///*--------------------*INVENTARIO*--------------------*/
+
+NoConcatenate
+Inventario_Tmp1:
+LOAD
+    Id_PuntoVenta,   
+    Marca,
+    ProgRutero,
+    Sum(Inventario) 					as Inventario,
+    LastValue(FechaActualizacion) 		as FechaActualizacion
+ Resident Inventario_Tmp
+ Group by
+     Id_PuntoVenta, 
+     ProgRutero,
+     Marca;
+ 
+Left Join 
+LOAD
+	 Id_PuntoVenta, 
+     Marca,
+     Inventario,
+     ProgRutero,
+     FechaActualizacion
+Resident Inventario_Tmp;
+DROP Table Inventario_Tmp;
+
+/*--------------------*PLANES COMERCIALES*--------------------*/
+NoConcatenate
+Planes_Comerciales_Tmp2:
+LOAD
+	 Id_PuntoVenta, 
+     Fecha,
+     Implementacion_PC,
+     Replace(Replace(Replace(Replace(SubtipoImplementacion, 'Tope Plano', 'Tope'), 'Tope De Tope', 'Tope'), 'Tope Con Barriga', 'Tope'), 'Punta', 'Punta De Gondola') as SubtipoImplementacion,
+     Cantidad_PC,
+     If(Id_PuntoVenta & Marca = ApplyMap('Map_HomologacionMarca', Id_PuntoVenta & Marca),Marca,ApplyMap('Map_HomologacionMarca', Id_PuntoVenta & Marca, Null()))  as Marca
+Resident Planes_Comerciales_Tmp1
+	Where
+		Year(Fecha)&Capitalize(Date(Fecha, 'MMMM'))=Year(Today(Fecha))&Capitalize(Date(Today(Fecha), 'MMMM'));
+
+DROP Table Planes_Comerciales_Tmp1;
+
+
+NoConcatenate
+Planes_Comerciales_Tmp3:
+LOAD
+    Id_PuntoVenta,  
+    Marca,
+    Max(Fecha) as Fecha 
+ Resident Planes_Comerciales_Tmp2
+ Group by
+     Id_PuntoVenta,  
+     Marca;
+ 
+Left Join (Planes_Comerciales_Tmp3)
+LOAD
+	Id_PuntoVenta, 
+     Marca,
+     Fecha,
+     Cantidad_PC,
+     SubtipoImplementacion,
+     Implementacion_PC
+Resident Planes_Comerciales_Tmp2;
+DROP Table Planes_Comerciales_Tmp2;
+
+
+NoConcatenate
+Planes_Comerciales_Tmp4:
+LOAD 
+	 Id_PuntoVenta, 
+     SubtipoImplementacion,
+     Implementacion_PC,
+     Marca
+Resident Planes_Comerciales_Tmp3;
+DROP Table Planes_Comerciales_Tmp3;
+
+
+/*--------------------*EXHIBICIONES*--------------------*/
+
+NoConcatenate
+Exhibiciones_Tmp2:
+LOAD
+	Id_PuntoVenta, 
+     Marca,
+     Fecha, 
+     ID_Registro,
+      Replace(Replace(Replace(Subtipo_Actividad, 'Mueble Exhibidor', 'Mueble'), 'Rejilla/Lateral', 'Lateral'), 'Tope De Tope', 'Tope') as Subtipo_Actividad,
+     TipoActividad
+Resident Exhibiciones_Tmp1
+Where
+		Year(Fecha)&Capitalize(Date(Fecha, 'MMMM'))=Year(Today(Fecha))&Capitalize(Date(Today(Fecha), 'MMMM'));
+DROP Table Exhibiciones_Tmp1;
+
+
+
+NoConcatenate
+Exhibiciones_Tmp3:
+LOAD Distinct
+     Id_PuntoVenta,
+     Max(Fecha)       as Fecha
+     Resident Exhibiciones_Tmp2
+     Where 
+          TipoActividad = 'Exhibiciones Por Gestion'
+     Group by	
+            Id_PuntoVenta;
+     
+Left join (Exhibiciones_Tmp3)
+
+LOAD     
+     Id_PuntoVenta, 
+     Marca,
+     Fecha,
+     ID_Registro, 
+     Subtipo_Actividad,
+     TipoActividad
+     Resident Exhibiciones_Tmp2
+     Where 
+          TipoActividad = 'Exhibiciones Por Gestion';
+     Drop Table Exhibiciones_Tmp2;
+  
+  
+ NoConcatenate
+Exhibiciones_Tmp4:
+LOAD 
+     Id_PuntoVenta,
+     Marca,
+     Subtipo_Actividad,
+     Count(ID_Registro) as ID_Registro   
+     Resident Exhibiciones_Tmp3
+     Group by	
+     		Marca,
+     		Subtipo_Actividad,
+            Id_PuntoVenta;
+     
+Left join (Exhibiciones_Tmp4)
+
+LOAD     
+     Id_PuntoVenta, 
+     Marca,
+     Subtipo_Actividad
+     Resident Exhibiciones_Tmp3;
+     Drop Table Exhibiciones_Tmp3;
+     
+/*--------------------*UNIÓN MÓDULOS*--------------------*/
+NoConcatenate
+Exhibiciones_Tmp5:
+LOAD
+	Id_PuntoVenta&Marca&Subtipo_Actividad as Llave,
+	Id_PuntoVenta, 
+     Marca,
+     Subtipo_Actividad,
+     ID_Registro
+Resident Exhibiciones_Tmp4;
+DROP Table Exhibiciones_Tmp4;
+
+Left Join 
+LOAD
+     Id_PuntoVenta&Marca&Subtipo_Actividad as Llave,
+     ValorExhibiciones
+Resident ExhibicionesValor_Tmp;
+DROP Table ExhibicionesValor_Tmp;
+
+
+NoConcatenate
+Planes_Comerciales_Tmp5:
+LOAD
+	Id_PuntoVenta&Marca&SubtipoImplementacion as Llave,
+	Id_PuntoVenta, 
+     Marca, 
+     SubtipoImplementacion		as Subtipo_Actividad,
+     Implementacion_PC
+Resident Planes_Comerciales_Tmp4;
+DROP Table Planes_Comerciales_Tmp4;
+
+Left Join
+LOAD
+	 Id_PuntoVenta&Marca&Subtipo_Actividad 		as Llave,
+     ValorPlanes
+Resident PlanesValor_Tmp;
+DROP Table PlanesValor_Tmp;
+
+
+NoConcatenate
+Tablero_General_Tmp1:
+  LOAD 
+ 	 Id_PuntoVenta, 
+     Marca,
+     Subtipo_Actividad,
+     ID_Registro,
+     ValorExhibiciones
+Resident Exhibiciones_Tmp5;
+DROP Table Exhibiciones_Tmp5;
+
+Concatenate
+
+LOAD 
+     Id_PuntoVenta, 
+     Marca, 
+     Subtipo_Actividad,
+     Implementacion_PC,
+     ValorPlanes
+ Resident Planes_Comerciales_Tmp5;
+ Drop Table Planes_Comerciales_Tmp5;
+ 
+
+NoConcatenate
+Tablero_General_Tmp2:
+LOAD
+	Id_PuntoVenta,
+	Marca,
+	Subtipo_Actividad,
+	Implementacion_PC,
+	ID_Registro,
+	ValorPlanes,
+	ValorExhibiciones
+Resident Tablero_General_Tmp1;
+DROP Table Tablero_General_Tmp1;
+
+
+NoConcatenate
+TablaPricipal_Tmp:
+LOAD
+	Id_PuntoVenta,
+	Marca
+Resident Inventario_Tmp1;
+DROP Table Inventario_Tmp1;
+
+Left Join
+LOAD
+	Id_PuntoVenta,
+	Marca,
+	Subtipo_Actividad,
+	Implementacion_PC,
+	ID_Registro,
+	ValorExhibiciones,
+	ValorPlanes
+Resident Tablero_General_Tmp2;
+DROP Table Tablero_General_Tmp2;
+
+
+NoConcatenate
+TablaPricipal_Tmp2:
+LOAD
+	Id_PuntoVenta,
+	Marca,
+	Subtipo_Actividad,
+	Sum(Implementacion_PC)			as Implementacion_PC,
+	ID_Registro,
+	ValorExhibiciones,
+	ValorPlanes
+Resident TablaPricipal_Tmp
+Group By
+	ID_Registro,
+	ValorExhibiciones,
+	ValorPlanes,
+	Id_PuntoVenta,
+	Marca,
+	Subtipo_Actividad;
+DROP Table TablaPricipal_Tmp;
+
+NoConcatenate
+TableroInvFinal_Tmp:
+LOAD Distinct
+	Id_PuntoVenta,
+    Marca, 
+    Subtipo_Actividad,
+    Implementacion_PC,
+    ID_Registro,
+    ValorExhibiciones,
+    If(Implementacion_PC >=2, Implementacion_PC*ValorPlanes, ValorPlanes)		as ValorPlanes
+Resident TablaPricipal_Tmp2
+	Order By
+	 Id_PuntoVenta,
+	 Marca,
+	 Subtipo_Actividad;
+DROP Table TablaPricipal_Tmp2;
+
+NoConcatenate
+TableroInvFinal:
+LOAD Distinct
+    Id_PuntoVenta&'-'&Marca					  as CK.Key1,
+    Id_PuntoVenta                                   as TableroInvFinal.Id_PuntoVenta,
+    Marca                                           as TableroInvFinal.Marca, 
+    Subtipo_Actividad                               as TableroInvFinal.Subtipo_Actividad,
+    Implementacion_PC                               as TableroInvFinal.Implementacion_PC,
+    ID_Registro                                     as TableroInvFinal.ID_Registro,
+    ValorExhibiciones                               as TableroInvFinal.ValorExhibiciones,
+    ValorPlanes                                     as TableroInvFinal.ValorPlanes
+Resident TableroInvFinal_Tmp;
+DROP Table TableroInvFinal_Tmp;
+
+STORE TableroInvFinal INTO [lib://COMP_Model (eficacia_admin_analitica)/SGI/Colombia/CENTRAL_CERVECERA/TableroDeControl/_TableroInvFinal.csv](txt, delimiter is '|');
+Drop Table TableroInvFinal;

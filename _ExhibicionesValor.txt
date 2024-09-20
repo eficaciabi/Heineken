@@ -1,0 +1,24 @@
+ExhibicionesValor_Tmp:
+LOAD 
+	 Cadena,
+     Id_PuntoVenta, 
+     Marca,
+     Subtipo_Actividad, 
+     Valor
+FROM
+[lib://COMP_Stage (eficacia_admin_analitica)/SGI/Colombia/CENTRAL_CERVECERA/Sh_ExhibicionesValor.qvd]
+(qvd);
+
+NoConcatenate
+ExhibicionesValor:
+LOAD
+    Id_PuntoVenta&'-'&Marca                        as CK.Key1,
+    Id_PuntoVenta,
+    Cadena,
+    Subtipo_Actividad, 
+    Valor
+Resident ExhibicionesValor_Tmp;
+Drop table ExhibicionesValor_Tmp;
+
+STORE ExhibicionesValor INTO [lib://COMP_Model (eficacia_admin_analitica)/SGI/Colombia/CENTRAL_CERVECERA/TableroDeControl/_ExhibicionesValor.csv](txt, delimiter is '|');
+Drop Table ExhibicionesValor;

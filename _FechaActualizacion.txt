@@ -1,0 +1,32 @@
+Map_Inventario:   
+Mapping
+LOAD    
+      CadenaFecha           as Cadena,
+      FechaActualizacion	as FechaActualizacionInventario
+FROM
+[lib://COMP_Stage (eficacia_admin_analitica)/SGI/Colombia/CENTRAL_CERVECERA/Sh_Inventario.qvd]
+(qvd);
+
+FechaActualizacion_Tmp:   
+LOAD   
+ 	FechaActualizacion	    as FechaActualizacionVentas,
+    Cadena,
+    Logo
+FROM
+[lib://COMP_Stage (eficacia_admin_analitica)/SGI/Colombia/CENTRAL_CERVECERA/Sh_Ventas.qvd]
+(qvd);
+
+NoConcatenate
+FechaActualizacion:
+Load
+    ApplyMap('Map_Inventario',  Cadena, Null())		                 as FechaActualizacionInventario,
+    Date(FechaActualizacionVentas, 'YYYY/MM/DD')                     as FechaActualizacionVentas,
+    Cadena,
+    If(Logo= 'N/E' OR Logo='N/A', Cadena, Logo)					     as Logo 
+Resident FechaActualizacion_Tmp;
+Drop Table FechaActualizacion_Tmp;
+
+Store FechaActualizacion INTO [lib://COMP_Model (eficacia_admin_analitica)/SGI/Colombia/CENTRAL_CERVECERA/TableroDeControl/_FechaActualizacion.csv](txt, delimiter is '|');
+Drop Table FechaActualizacion;
+
+

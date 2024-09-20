@@ -1,0 +1,195 @@
+Tildes:
+    mapping 
+        LOAD * INLINE [
+        Valor,Resultado
+        Á,A
+        á,a
+        É,E
+        é,e
+        Í,I
+        í,i
+        Ó,O
+        ó,o
+        Ú,U
+        ú,u ];
+
+PuntosComas:
+    Mapping
+        LOAD * INLINE [
+        Valor,Resultado
+        ".","," ];
+
+Map_Cadena:
+	Mapping
+		LOAD
+			ID_SUCURSAL,
+			CADENA
+		FROM 
+		[lib://COMP_Stage (eficacia_admin_analitica)/SGI/Colombia/HEINEKEN/IPV_PuntoVenta.qvd]
+		(qvd);
+
+
+Map_CadenaTablero:
+	Mapping
+		LOAD
+			ID_SUCURSAL,
+			Capitalize(CADENA)              as Cadena
+		FROM 
+		[lib://COMP_Stage (eficacia_admin_analitica)/SGI/Colombia/HEINEKEN/IPV_PuntoVenta.qvd]
+		(qvd);
+
+Map_Canal:
+	Mapping
+		LOAD
+			ID_SUCURSAL,
+			CANAL
+		FROM 
+		[lib://COMP_Stage (eficacia_admin_analitica)/SGI/Colombia/HEINEKEN/IPV_PuntoVenta.qvd]
+		(qvd);
+
+Map_Pdv:
+	Mapping
+		LOAD
+			ID_SUCURSAL,
+			NOMBRE
+		FROM 
+		[lib://COMP_Stage (eficacia_admin_analitica)/SGI/Colombia/HEINEKEN/IPV_PuntoVenta.qvd]
+		(qvd);
+
+Map_Regional:
+	Mapping
+		LOAD
+			ID_SUCURSAL,
+			REGIONAL
+		FROM 
+		[lib://COMP_Stage (eficacia_admin_analitica)/SGI/Colombia/HEINEKEN/IPV_PuntoVenta.qvd]
+		(qvd);
+
+Map_Metas:
+    Mapping
+        LOAD 
+            Cadena, 
+            Meta
+        FROM 
+        [lib://COMP_Stage (eficacia_admin_analitica)/SGI/Colombia/CENTRAL_CERVECERA/Sh_Metas.qvd] 
+        (qvd);
+
+Map_Rol:
+	Mapping
+		LOAD
+			ID_ASESOR,
+			ROL_ASESOR
+		FROM 
+		[lib://COMP_Stage (eficacia_admin_analitica)/SGI/Colombia/HEINEKEN/IPV_Asesor.qvd]
+		(qvd);
+
+
+Map_Descripcion:
+    Mapping	
+        LOAD
+            ID_SUCURSAL					as Id_PuntoVenta,
+            NOMBRE					as Descripcion	
+        
+        FROM 
+        [lib://COMP_Stage (eficacia_admin_analitica)/SGI/Colombia/HEINEKEN/IPV_PuntoVenta.qvd]
+        (qvd);
+
+Map_PesoAgotados:
+    Mapping
+        LOAD 
+            PurgeChar(Llave,' ')		as Llave,  
+            Peso
+        FROM
+        [lib://COMP_Stage (eficacia_admin_analitica)/SGI/Colombia/CENTRAL_CERVECERA/Sh_PesoAgotados.qvd] 
+        (qvd);
+
+Map_Semanas:
+        Mapping
+        LOAD 
+            Fecha, 
+            Semana
+        FROM
+        [lib://COMP_Stage (eficacia_admin_analitica)/SGI/Colombia/CENTRAL_CERVECERA/Sh_Semanas.qvd] 
+        (qvd);
+
+Map_Ciudad:
+    Mapping	
+        LOAD
+            ID_SUCURSAL				as Id_PuntoVenta,
+            CIUDAD				
+        FROM 
+        [lib://COMP_Stage (eficacia_admin_analitica)/SGI/Colombia/HEINEKEN/IPV_PuntoVenta.qvd]
+        (qvd);
+
+Map_Marca:
+    Mapping	
+        LOAD
+            SK.Producto			as Id_Producto,
+            Producto.Marca
+        FROM 
+        [lib://COMP_DataMart (eficacia_admin_analitica)/SGI/Colombia/CENTRAL_CERVECERA/_Producto.qvd]
+        (qvd);
+
+Map_ValorExhibicion:
+Mapping
+    LOAD
+        SubTipoImplementacion, 
+        Valor
+FROM
+[lib://COMP_Stage (eficacia_admin_analitica)/SGI/Colombia/CENTRAL_CERVECERA/Sh_ValorExhibicion.qvd] 
+(qvd);
+
+Map_ValorExhibiciones:
+Mapping
+LOAD 
+	 Subtipo_Actividad, 
+     Valor
+FROM 
+    [lib://COMP_Stage (eficacia_admin_analitica)/SGI/Colombia/CENTRAL_CERVECERA/Sh_Exhibicion.qvd] 
+(qvd);
+
+Map_Universo:
+Mapping
+LOAD 
+	 Cadena, 
+     Universo
+FROM 
+    [lib://COMP_Stage (eficacia_admin_analitica)/SGI/Colombia/CENTRAL_CERVECERA/Sh_Universo.qvd] 
+(qvd);
+
+Map_PdvPiloto:
+    Mapping
+        LOAD 
+            IdPdvPiloto,  
+            'Piloto'
+        FROM
+        [lib://COMP_Stage (eficacia_admin_analitica)/SGI/Colombia/CENTRAL_CERVECERA/Sh_PDVPiloto.qvd] 
+        (qvd);
+
+Map_HomologacionMarca:
+Mapping
+LOAD 
+	    Llave,
+        MarcaPredominante 
+    FROM
+    [lib://COMP_Stage (eficacia_admin_analitica)/SGI/Colombia/CENTRAL_CERVECERA/Sh_HomologacionMarca.qvd] 
+    (qvd);
+
+
+LET Cr = Chr(160);
+
+Ean:
+	LOAD
+		If(Producto.Descripcion= 'Tecate Lata X 6 X330ml', 'Tecate Lata X6 330ml', Producto.Descripcion)			as Producto,
+		Producto.CodigoBarras
+FROM
+	[lib://COMP_DataMart (eficacia_admin_analitica)/SGI/Colombia/CENTRAL_CERVECERA/_Producto.qvd]
+(qvd);
+
+Map_Ean:
+Mapping
+LOAD
+	Rtrim(Replace(Producto, Chr(160), ''))		as Producto,
+	Producto.CodigoBarras
+Resident Ean;
+DROP Table Ean;

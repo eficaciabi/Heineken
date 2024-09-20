@@ -1,0 +1,87 @@
+
+Producto_Tmp1:
+    LOAD
+        ID_PRODUCTO,
+        DESCRIPCION         as Descripcion,
+        CODIGO_BARRAS       as CodigoBarras,
+        MARCA               as Marca,
+        SUBMARCA            as SubMarca,
+        EMPRESA             as Empresa,
+        LINEA               as Linea,
+        CATEGORIA           as Categoria,
+        SUB_CATEGORIA       as Sub_Categoria,
+        UNIDAD_MEDIDA       as UnidadMedida
+    FROM 
+    [lib://COMP_Stage (eficacia_admin_analitica)/SGI/Colombia/HEINEKEN/IPV_Producto.qvd]
+    (qvd);
+    
+/*----------*/
+NoConcatenate
+Producto_Tmp2:
+    LOAD
+        PRODUCTO_ID,
+        Capitalize(Marca)                                                   as Marca,
+        Capitalize(Descripcion)                                             as Descripcion,
+        Capitalize(Empresa)                                                 as Empresa,
+        Capitalize(SubMarca)		                                        as SubMarca,
+        Capitalize(Linea)			                                        as Linea,
+        Capitalize(Categoria)		                                        as Categoria,
+        Capitalize(Sub_Categoria)	                                        as Sub_Categoria,
+        CodigoBarras,
+        UnidadMedida
+    Resident Producto_Tmp1;
+    Drop Table Producto_Tmp1;
+
+NoConcatenate
+Producto_Tmp3:
+    LOAD
+        PRODUCTO_ID,
+        'Andina Light'		as Marca,
+        Descripcion,
+        Empresa,
+        SubMarca,
+        Linea,
+        Categoria,
+        Sub_Categoria,
+        CodigoBarras,
+        UnidadMedida
+    Resident Producto_Tmp2
+    Where
+    	WildMatch(Descripcion, 'Andina Light*');
+
+Concatenate
+LOAD
+        PRODUCTO_ID,
+        Marca,
+        Descripcion,
+        Empresa,
+        SubMarca,
+        Linea,
+        Categoria,
+        Sub_Categoria,
+        CodigoBarras,
+        UnidadMedida
+    Resident Producto_Tmp2
+    Where
+    	not WildMatch(Descripcion, 'Andina Light*');
+    Drop Table Producto_Tmp2;
+
+/*----------*/
+NoConcatenate
+Producto:
+    LOAD
+        PRODUCTO_ID         as SK.Producto,
+        Marca               as Producto.Marca,
+        Descripcion         as Producto.Descripcion,
+        Empresa             as Producto.Empresa,
+        SubMarca			as Producto.SubMarca,
+        Linea				as Producto.Linea,
+        Categoria			as Producto.Categoria,
+        Sub_Categoria		as Producto.Sub_Categoria,
+        CodigoBarras		as Producto.CodigoBarras,
+        UnidadMedida		as Producto.UnidadMedida
+    Resident Producto_Tmp3;
+    Drop Table Producto_Tmp3; 
+
+Store Producto into [lib://COMP_DataMart (eficacia_admin_analitica)/SGI/Colombia/CENTRAL_CERVECERA/_Producto.qvd];
+Drop Table Producto;

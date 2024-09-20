@@ -1,0 +1,92 @@
+
+ProductoEspejo_Tmp:	
+LOAD 
+	Producto, 
+    Batalla
+FROM 
+    [lib://COMP_Stage (eficacia_admin_analitica)/SGI/Colombia/CENTRAL_CERVECERA/Sh_ProductoEspejo.qvd] 
+    (qvd);
+
+
+PreciosCompetencia_Tmp:    
+LOAD 
+     Precios.IdPuntoVenta					as IdPuntoVenta, 
+     Precios.Producto						as Producto, 
+     Precios.IdPersona						as IdPersona, 
+     Precios.Fecha							as Fecha, 
+     Precios.Semana							as Semana, 
+     Precios.NumSemana						as NumSemana, 
+     Precios.Tipo							as Tipo, 
+     Precios.TipoEmpresa					as TipoEmpresa, 
+     Precios.PrecioxMl						as PrecioxMl, 
+     Precios.Precio							as Precio, 
+     Precios.Moda                           as Moda,
+     Precios.ModaMiles                      as ModaMiles,
+     Precios.ModaCiudad                     as ModaCiudad,
+     Precios.ModaCiudadMiles                as ModaCiudadMiles,
+     Precios.PrecioSugerido                 as PrecioSugerido,
+     Precios.PrecioSugerido1                as PrecioSugerido1,
+     Precios.Marca							as Marca
+FROM
+[lib://COMP_DataMart (eficacia_admin_analitica)/SGI/Colombia/CENTRAL_CERVECERA/_Precios_*.qvd]
+(qvd);
+
+
+NoConcatenate
+PreciosCompetencia_Tmp1:
+LOAD
+	 IdPuntoVenta, 
+     Producto				as Batalla, 
+     IdPersona, 
+     Fecha, 
+     Semana, 
+     NumSemana, 
+     Tipo, 
+     TipoEmpresa, 
+     PrecioxMl, 
+     Precio, 
+     Moda,
+     ModaMiles,
+     ModaCiudad,
+     ModaCiudadMiles,
+     PrecioSugerido,
+     PrecioSugerido1,
+     Marca
+Resident PreciosCompetencia_Tmp
+	Where
+		TipoEmpresa = 'Competencia';
+DROP Table PreciosCompetencia_Tmp;
+
+Left Join
+LOAD
+	Batalla,
+	Producto
+Resident ProductoEspejo_Tmp;
+DROP Table ProductoEspejo_Tmp;
+
+NoConcatenate
+PreciosCompetencia:
+LOAD Distinct
+	IdPuntoVenta&'-'&IdPersona&'-'&Producto&'-'&Fecha			     as SK.Precios,
+	IdPuntoVenta													 as PreciosCompetencia.IdPuntoVenta, 
+    Producto														 as PreciosCompetencia.Producto, 
+    IdPersona														 as PreciosCompetencia.IdPersona, 
+    Fecha															 as PreciosCompetencia.Fecha, 
+    Semana															 as PreciosCompetencia.Semana, 
+    NumSemana														 as PreciosCompetencia.NumSemana, 
+    Tipo															 as PreciosCompetencia.Tipo, 
+    PrecioxMl														 as PreciosCompetencia.PrecioxMl, 
+    Precio															 as PreciosCompetencia.Precio, 
+    Batalla                                                          as PreciosCompetencia.ProductoBatalla,
+    Moda                                                             as PreciosCompetencia.Moda,
+    ModaMiles                                                        as PreciosCompetencia.ModaMiles,
+    ModaCiudad                                                       as PreciosCompetencia.ModaCiudad,
+    ModaCiudadMiles                                                  as PreciosCompetencia.ModaCiudadMiles,
+    PrecioSugerido                                                   as PreciosCompetencia.PrecioSugerido,
+    PrecioSugerido1                                                  as PreciosCompetencia.PrecioSugerido1,
+    Marca															 as PreciosCompetencia.Marca
+Resident PreciosCompetencia_Tmp1;
+DROP Table PreciosCompetencia_Tmp1;	
+
+STORE PreciosCompetencia INTO [lib://COMP_DataMart (eficacia_admin_analitica)/SGI/Colombia/CENTRAL_CERVECERA/_PreciosCompetencia.qvd];
+Drop Table  PreciosCompetencia;

@@ -1,0 +1,313 @@
+Exhibiciones_Tmp1:
+	LOAD 	
+		EMPRESA					as Empresa,
+		CATEGORIA				as Categoria,
+		MARCA					as Marca,
+		TIPO_ACTIVIDAD			as Tipo_Actividad,
+		OBSERVACIONES			as Observaciones,
+		SUBTIPO_ACTIVIDAD		as Subtipo_Actividad,
+		ID_SUCURSAL				as Id_Sucursal,
+		ID_ASESOR				as Id_Usuario,
+		FECHA				as _Fecha_Visita,
+		ID_REGISTRO				as ID_Registro,
+		NOMBRE_ARCHIVO			as Url_Captura
+	FROM
+	[lib://COMP_Stage (eficacia_admin_analitica)/SGI/Colombia/HEINEKEN/Actividades_$(Anno)$(Mes)*.qvd]
+	(qvd);
+
+	
+Map_Exhibicion:
+Mapping
+LOAD 
+	 Subtipo_Actividad, 
+     Valor
+FROM 
+    [lib://COMP_Stage (eficacia_admin_analitica)/SGI/Colombia/CENTRAL_CERVECERA/Sh_Exhibicion.qvd] 
+(qvd);
+
+ExhibicionCadena:
+LOAD 
+	 Cadena, 
+     PuntaDeGondolaSeca, 
+     PuntaDeGondolaFria, 
+     EstibaMT2, 
+     Chimenea, 
+     Mueble50x50cm, 
+     Mueble100x100cm, 
+     Tope, 
+     Lateral, 
+     Cross, 
+     MediaLunaArrume, 
+     Nevera
+FROM 
+    [lib://COMP_Stage (eficacia_admin_analitica)/SGI/Colombia/CENTRAL_CERVECERA/Sh_ExhibicionCadena.qvd] 
+(qvd);
+
+HomologacionMarcas:
+LOAD
+	Capitalize(Marca)			as Marca, 
+    Capitalize(TipoEmpresa)		as TipoEmpresa, 
+    Capitalize(Categoria)		as Categoria
+FROM 
+    [lib://COMP_Stage (eficacia_admin_analitica)/SGI/Colombia/CENTRAL_CERVECERA/Sh_Categoria.qvd] 
+    (qvd);
+
+NoConcatenate
+Exhibiciones_Tmp2:
+	LOAD
+		Capitalize(Empresa)																									as Empresa,
+		capitalize(Categoria)																								as Categoria,
+		Capitalize(Marca)																									as Marca,
+		Capitalize(Tipo_Actividad)																							as Tipo_Actividad,
+		replace(Capitalize(Observaciones),Chr(10),' ')																		as Observaciones,
+		capitalize(Subtipo_Actividad)																						as Subtipo_Actividad,
+		Id_Sucursal,
+		Id_Usuario,
+		Capitalize(Applymap('Map_Cadena', Id_Sucursal, Null()))			    															as Cadena,
+		Applymap('Map_Rol', Id_Usuario, Null())			    																as Rol,
+		 Applymap('Map_Ciudad', Id_Sucursal, Null())		                												as Ciudad,
+		DATE(left(date(_Fecha_Visita,'DD/MM/YYYY'),10),'YYYY/MM/DD')														as Fecha,
+		ID_Registro,
+		'$(RutaServerUno)'&Date(_Fecha_Visita,'YYYY')&'/'&Date(_Fecha_Visita,'MM')&'/'&526&'/'&Url_Captura		as Url_Captura
+	Resident Exhibiciones_Tmp1
+	where 
+		not WildMatch(Id_Usuario,'46468', '145723', '160381', '169336')
+    and DATE(left(date(_Fecha_Visita,'DD/MM/YYYY'),10),'YYYY/MM/DD')>'2022/12/31'
+    And WildMatch(Tipo_Actividad, 'EXHIBICIONES ADICIONALES COMPETENCIA', 'EXHIBICIONES POR GESTION')
+     And Applymap('Map_Rol', Id_Usuario, Null())<> 'SUPERVISOR TIENDAS'
+     And Subtipo_Actividad<> 'PUESTO DE PAGO'
+     And Not(IsNull(Url_Captura));
+	DROP Table Exhibiciones_Tmp1;
+	
+
+NoConcatenate
+Exhibiciones_Tmp3:
+LOAD
+	    Empresa,
+		Categoria,
+		Ciudad,
+		Observaciones,
+		Subtipo_Actividad,
+		Tipo_Actividad,
+		Id_Sucursal,
+		Id_Usuario,
+		Rol,
+		Fecha,
+		Year(Fecha)&Num(Month(Fecha), '00')		as Periodo,
+		ID_Registro,
+		Url_Captura,
+		REPLACE(Marca, 'Club Colombia', 'Club') as Marca,
+		Cadena	
+Resident Exhibiciones_Tmp2;
+DROP Table Exhibiciones_Tmp2;
+
+NoConcatenate
+Exhibiciones_Tmp4:
+LOAD
+	    Empresa,
+		Categoria,
+		Ciudad,
+		Observaciones,
+		Replace(Subtipo_Actividad, 'Croos', 'Cross')	as Subtipo_Actividad,
+		Tipo_Actividad,
+		Id_Sucursal,
+		Id_Usuario,
+		Rol,
+		Fecha,
+		ID_Registro,
+		Url_Captura,
+		Marca,
+		Periodo,
+		Cadena	
+Resident Exhibiciones_Tmp3
+Where
+((Marca = 'Central') AND (Cadena = 'Exito' OR Cadena = 'Exito Express' OR Cadena = 'Carulla' OR Cadena = 'Carulla Express' OR Cadena = 'Surtimayorista' OR Cadena = 'Superinter' OR Cadena = 'Surtimax' OR Cadena = 'Surtimayoristas') 
+OR (Marca <> 'Central'))
+
+And ((Marca= 'Andes') And (Ciudad= 'BOGOTÁ')  Or (Marca <> 'Andes'))
+
+And ((Marca = 'Tecate') AND (Periodo >= '202312') And (Cadena = 'Olimpica') OR (Marca <> 'Tecate'));
+DROP Table Exhibiciones_Tmp3;
+
+Left Join
+LOAD
+		Marca,  
+	    Categoria,
+	    TipoEmpresa
+Resident HomologacionMarcas;
+DROP Table HomologacionMarcas;
+		
+
+NoConcatenate
+Exhibiciones_Tmp5:
+LOAD
+	    Empresa,
+		Categoria,
+		Ciudad,
+		Observaciones,
+		Subtipo_Actividad,
+		Id_Sucursal,
+		Id_Usuario,
+		Rol,
+		Fecha,
+		ID_Registro,
+		Tipo_Actividad,
+		Url_Captura,
+		Marca,
+		Cadena,
+		TipoEmpresa,
+		'Semana ' & Applymap('Map_Semanas', Fecha, Null())                    														as Semana,
+		Applymap('Map_Exhibicion', Subtipo_Actividad, Null())		                												as Valor	
+Resident Exhibiciones_Tmp4
+Where
+	Not WildMatch(TipoEmpresa&Tipo_Actividad, 'CompetenciaExhibiciones Por Gestion', 'PropioExhibiciones Adicionales Competencia');
+DROP Table Exhibiciones_Tmp4;
+
+
+NoConcatenate
+Exhibiciones_Tmp6:
+LOAD Distinct
+		Tipo_Actividad,
+		Subtipo_Actividad,
+		Id_Sucursal,
+		Semana,
+		Id_Usuario,
+		Url_Captura,
+		Marca,
+		Max(Fecha)					as Fecha,
+		Max(ID_Registro)			as ID_Registro
+Resident Exhibiciones_Tmp5
+Group By
+		Tipo_Actividad,
+		Subtipo_Actividad,
+		Id_Sucursal,
+		Url_Captura,
+		Semana,
+		Id_Usuario,
+		Marca;
+
+Left Join
+LOAD Distinct
+	    Empresa,
+		Categoria,
+		Ciudad,
+		Tipo_Actividad,
+		Observaciones,
+		Subtipo_Actividad,
+		Id_Sucursal,
+		Id_Usuario,
+		Rol,
+		Fecha,
+		ID_Registro,
+		Url_Captura,
+		Marca,
+		Semana,
+		Cadena,
+		Valor,
+		TipoEmpresa
+Resident Exhibiciones_Tmp5;
+DROP Table Exhibiciones_Tmp5;
+
+Left Join
+LOAD
+	 Cadena, 
+     PuntaDeGondolaSeca, 
+     PuntaDeGondolaFria, 
+     EstibaMT2, 
+     Chimenea, 
+     Mueble50x50cm, 
+     Mueble100x100cm, 
+     Tope, 
+     Lateral, 
+     Cross, 
+     MediaLunaArrume, 
+     Nevera
+Resident ExhibicionCadena;
+DROP Table ExhibicionCadena;
+
+NoConcatenate
+Exhibiciones_Tmp7:
+LOAD Distinct
+		Tipo_Actividad,
+		Subtipo_Actividad,
+		Id_Sucursal,
+		Semana,
+		Marca,
+		Max(ID_Registro)			as ID_Registro
+Resident Exhibiciones_Tmp6
+Group By
+		Tipo_Actividad,
+		Subtipo_Actividad,
+		Id_Sucursal,
+		Semana,
+		Marca;
+
+Left Join
+LOAD Distinct
+	    Empresa,
+		Categoria,
+		Ciudad,
+		Tipo_Actividad,
+		Observaciones,
+		Subtipo_Actividad,
+		Id_Sucursal,
+		Id_Usuario,
+		Rol,
+		Fecha,
+		ID_Registro,
+		Url_Captura,
+		Marca,
+		Semana,
+		Cadena,
+		Valor,
+		TipoEmpresa,
+		PuntaDeGondolaSeca, 
+		PuntaDeGondolaFria, 
+		EstibaMT2, 
+		Chimenea, 
+		Mueble50x50cm, 
+		Mueble100x100cm, 
+		Tope, 
+		Lateral, 
+		Cross, 
+		MediaLunaArrume, 
+		Nevera
+Resident Exhibiciones_Tmp6;
+DROP Table Exhibiciones_Tmp6;
+
+NoConcatenate
+Exhibiciones:
+	LOAD
+		Id_Sucursal&'-'&Id_Usuario&'-'&Fecha	as CK.Key1,
+		Id_Sucursal&Year(Fecha)&Num(Month(Fecha), '00')&Semana   as Exhibiciones.Llave,
+		Empresa									as Exhibiciones.Empresa,
+		Categoria								as Exhibiciones.Categoria,
+		Marca									as Exhibiciones.Marca,
+		Valor									as Exhibiciones.Valor,
+		Semana									as Exhibiciones.Semana,
+		Tipo_Actividad							as Exhibiciones.Tipo_Actividad,
+		TipoEmpresa								as Exhibiciones.TipoEmpresa,
+		Observaciones							as Exhibiciones.Observaciones,
+		Subtipo_Actividad						as Exhibiciones.Subtipo_Actividad,
+		Id_Sucursal								as Exhibiciones.Id_Sucursal,
+		Id_Usuario								as Exhibiciones.Id_Usuario,
+		Fecha									as Exhibiciones.Fecha,
+		ID_Registro								as Exhibiciones.ID_Registro,
+		Url_Captura								as Exhibiciones.Url_Captura,
+		Cadena									as Exhibiciones.Cadena, 
+		PuntaDeGondolaSeca						as Exhibiciones.PuntaDeGondolaSeca, 
+		PuntaDeGondolaFria						as Exhibiciones.PuntaDeGondolaFria, 
+		EstibaMT2								as Exhibiciones.EstibaMT2, 
+		Chimenea								as Exhibiciones.Chimenea, 
+		Mueble50x50cm							as Exhibiciones.Mueble50x50cm, 
+		Mueble100x100cm							as Exhibiciones.Mueble100x100cm, 
+		Tope									as Exhibiciones.Tope, 
+		Lateral									as Exhibiciones.Lateral, 
+		Cross									as Exhibiciones.Cross, 
+		MediaLunaArrume							as Exhibiciones.MediaLunaArrume, 
+		Nevera									as Exhibiciones.Nevera
+	Resident Exhibiciones_Tmp7;
+	DROP Table Exhibiciones_Tmp7;
+
+    STORE Exhibiciones INTO [lib://COMP_DataMart (eficacia_admin_analitica)/SGI/Colombia/CENTRAL_CERVECERA/_Exhibiciones_$(Anno)$(Mes).qvd];
+Drop Table  Exhibiciones;

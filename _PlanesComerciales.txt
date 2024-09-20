@@ -1,0 +1,233 @@
+/*-----------------------------------------------------------------------------------------------------------------------------------------------
+Compañia: 		Eficacia S.A
+Proceso:		Transformacion Planes Comerciales
+Desarrollador: 	Sergio Grisales
+Email:			sergio_grisales@Eficacia.com.co
+Fecha			2023/11/22 (YYYY/MM/DD)
+-----------------------------------------------------------------------------------------------------------------------------------------------*/
+PlanesComerciales_Tmp1:
+	LOAD 
+		ID_ASESOR, 
+		ID_EVENTO,
+		EST_SECUENCIA,
+		ID_SUBTIPO_IMPLEMENTACION,
+		CUMPLE_CON_LA_IMPLEMENTACION, 
+		CANTIDAD_IMPLEMENTACION, 
+		OTRO_TIPO_SUBTIPO, 
+		ID_SUCURSAL,
+		SUBTIPO_IMPLEMENTACION, 
+		CAUSAL_DE_NO_CUMPLIMIENTO_IMPL, 
+		TIPO_GESTION_ESTRATEGIA, 
+		NOVEDAD,
+		CUMPLE_ESTRATEGIA,
+		FECHA,
+		NOMBRE_ARCHIVO,
+		NOMBRE_EVENTO
+	FROM
+	[lib://COMP_Stage (eficacia_admin_analitica)/SGI/Colombia/HEINEKEN/PlanesComerciales_*.qvd]
+	(qvd);
+
+Parametrizacion_Tmp1:
+	LOAD 
+		SECUENCIA,
+		ID_EVENTO,
+		ID_SUBTIPO_IMPLEMENTACION,
+		NOMBRE_EVENTO, 
+		FECHA_INICIO					as	_FECHA_INICIO, 
+		FECHA_FIN						as	_FECHA_FIN, 
+		ID_PV							as ID_SUCURSAL, 
+		CATEGORIA,
+		SUBCATEGORIA,
+		SUBTIPO_IMPLEMENTACION, 
+		CANTIDAD,   
+		MARCA,
+		ESTADO
+	FROM
+	[lib://COMP_Stage (eficacia_admin_analitica)/SGI/Colombia/HEINEKEN/Parametrizacion_Planes.qvd]
+	(qvd);
+
+NoConcatenate
+ExclusionPac_Tmp1:
+	LOAD 
+		SECUENCIA,
+		ID_EVENTO,
+		ID_PV,
+		ID_SUBTIPO_IMPLEMENTACION,
+		MARCA,
+		FECHA_INICIO,
+		FECHA_FIN,
+		CANTIDAD
+	FROM
+	[lib://COMP_Stage (eficacia_admin_analitica)/SGI/Colombia/CENTRAL_CERVECERA/Sh_ExclusionPac.qvd]
+	(qvd);
+
+NoConcatenate
+ExclusionPac_Tmp2:
+	LOAD 
+		SECUENCIA&ID_EVENTO&ID_PV&ID_SUBTIPO_IMPLEMENTACION&MARCA&FECHA_INICIO&FECHA_FIN&CANTIDAD		as llaveExclusion
+	Resident ExclusionPac_Tmp1;
+	Drop table ExclusionPac_Tmp1;
+	
+NoConcatenate
+PlanesComerciales_Tmp2:
+	LOAD Distinct
+		Date#(Year(FECHA)&'/'&Num(Month(FECHA),'00')&'/'&Num(Day(FECHA),'00'),'YYYY/MM/DD')	as _FECHA,
+		Date#(Year(FECHA) & '/' & Num(Month(FECHA), '00') & '/' & Num(Day(FECHA), '00') & ' ' & Num(Hour(FECHA), '00') & ':' & Num(Minute(FECHA), '00') & ':' & Num(Second(FECHA), '00'),'YYYY/MM/DD hh:mm:ss')    as FECHAHORA,
+		ID_ASESOR, 
+		ID_EVENTO,
+		EST_SECUENCIA,
+		ID_SUBTIPO_IMPLEMENTACION,
+		SUBTIPO_IMPLEMENTACION, 
+		CUMPLE_CON_LA_IMPLEMENTACION,
+		NOVEDAD,
+		OTRO_TIPO_SUBTIPO,
+		TIPO_GESTION_ESTRATEGIA, 
+		CUMPLE_ESTRATEGIA,
+		CANTIDAD_IMPLEMENTACION,
+		CAUSAL_DE_NO_CUMPLIMIENTO_IMPL,
+		ID_SUCURSAL,
+		'$(RutaServerDos)'&'listas_complementarias/'&Date(FECHA,'YYYY')&'/'&Date(FECHA,'MM')&'/'&526&'/'&NOMBRE_ARCHIVO  	as URL_FOTO
+	Resident PlanesComerciales_Tmp1
+	Where
+		Not WildMatch(ID_ASESOR, 46468, 145723, 160381, 169336);
+	DROP Table PlanesComerciales_Tmp1;
+
+/* ***** -----|Transformacion de Captura de Informacion|----- ***** */
+/* --- Tomamos los registros que coinciden con lo que se parametrizo --- */
+NoConcatenate
+Cruce_Planes_Tmp1:
+	LOAD
+		ID_SUCURSAL&'-'&SECUENCIA&'-'&ID_EVENTO&'-'&ID_SUBTIPO_IMPLEMENTACION					as Ck.Key,
+		ID_SUCURSAL&'-'&SECUENCIA&'-'&ID_EVENTO&'-'&ID_SUBTIPO_IMPLEMENTACION	 				as LLAVEPARAMETRIZACION,
+		SECUENCIA,
+		ID_SUBTIPO_IMPLEMENTACION,
+		NOMBRE_EVENTO,
+		ID_EVENTO, 
+		Date(left(date(_FECHA_INICIO,'DD/MM/YYYY'),10),'YYYY/MM/DD')					as FECHA_INICIO, 
+		Date(left(date(_FECHA_FIN,'DD/MM/YYYY'),10),'YYYY/MM/DD')						as FECHA_FIN, 
+		ID_SUCURSAL,
+		CATEGORIA,
+		Capitalize(SUBCATEGORIA)														as SUBCATEGORIA,
+		Capitalize(SUBTIPO_IMPLEMENTACION)  											as SUBTIPO_IMPLEMENTACION, 
+		CANTIDAD,
+		MARCA,
+		ESTADO
+	Resident Parametrizacion_Tmp1;
+	DROP Table Parametrizacion_Tmp1;
+
+Left Join(Cruce_Planes_Tmp1)
+	LOAD
+		ID_SUCURSAL&'-'&EST_SECUENCIA&'-'&ID_EVENTO&'-'&ID_SUBTIPO_IMPLEMENTACION 	as Ck.Key,
+		ID_SUCURSAL&'-'&EST_SECUENCIA&'-'&ID_EVENTO&'-'&ID_SUBTIPO_IMPLEMENTACION  	as LLAVECAPTURA,
+		_FECHA,
+		FECHAHORA,
+		URL_FOTO,
+		ID_ASESOR, 
+		CUMPLE_CON_LA_IMPLEMENTACION, 
+		OTRO_TIPO_SUBTIPO,
+		TIPO_GESTION_ESTRATEGIA,
+		NOVEDAD,
+		CUMPLE_ESTRATEGIA,
+		CANTIDAD_IMPLEMENTACION,
+		CAUSAL_DE_NO_CUMPLIMIENTO_IMPL,
+		ID_SUCURSAL
+	Resident PlanesComerciales_Tmp2;
+	DROP Table PlanesComerciales_Tmp2;	
+
+NoConcatenate
+Planes_Comerciales_Tmp1:
+	LOAD
+		NOMBRE_EVENTO, 
+		FECHA_INICIO, 
+		FECHA_FIN, 
+		ID_SUCURSAL,
+		CATEGORIA,
+		SUBTIPO_IMPLEMENTACION, 
+		CANTIDAD,   
+		MARCA,
+		if(isnull(_FECHA),Date(Today(),'YYYY/MM/DD') ,_FECHA) 							as _FECHA,
+		if(isnull(ID_ASESOR),'X',ID_ASESOR) 							as ID_ASESOR,
+		URL_FOTO, 
+		FECHAHORA,
+		CUMPLE_CON_LA_IMPLEMENTACION,
+		NOVEDAD,
+		OTRO_TIPO_SUBTIPO,
+		TIPO_GESTION_ESTRATEGIA,
+		CANTIDAD_IMPLEMENTACION,
+		CUMPLE_ESTRATEGIA,
+		CAUSAL_DE_NO_CUMPLIMIENTO_IMPL,
+		ID_SUBTIPO_IMPLEMENTACION			
+	Resident Cruce_Planes_Tmp1
+	Where
+		not Exists(llaveExclusion,SECUENCIA&ID_EVENTO&ID_SUCURSAL&ID_SUBTIPO_IMPLEMENTACION&MARCA&FECHA_INICIO&FECHA_FIN&CANTIDAD);
+	DROP Table Cruce_Planes_Tmp1;
+	Drop table ExclusionPac_Tmp2;
+
+/*--------------------*/
+
+NoConcatenate
+Planes_Comerciales_Tmp2:
+	LOAD
+		*,
+		'Implementado 100%'					as ESTADO
+Resident Planes_Comerciales_Tmp1
+where
+ WildMatch(CUMPLE_CON_LA_IMPLEMENTACION, 'SI');
+ 
+Concatenate
+ LOAD
+ 		*,
+		'Sin Implementacion'				as ESTADO
+Resident Planes_Comerciales_Tmp1
+where
+ WildMatch(CUMPLE_CON_LA_IMPLEMENTACION, 'NO');
+ 
+Concatenate
+ LOAD
+ 		*,
+		'Implementado Parcialmente'			as ESTADO
+Resident Planes_Comerciales_Tmp1
+where
+ WildMatch(CUMPLE_CON_LA_IMPLEMENTACION, 'OTRO');
+ 
+Concatenate
+	LOAD
+		*,
+		'Pendiente Información'				as ESTADO
+Resident Planes_Comerciales_Tmp1
+Where 
+	IsNull(CUMPLE_CON_LA_IMPLEMENTACION)
+	And IsNull(CUMPLE_ESTRATEGIA);
+DROP Table Planes_Comerciales_Tmp1;
+		
+/*--------------------*/
+NoConcatenate
+PlanesComerciales:
+	LOAD
+		ID_SUCURSAL&'-'&ID_ASESOR&'-'&_FECHA																as CK.Key1,
+		NOMBRE_EVENTO&'-'&SUBTIPO_IMPLEMENTACION&'-'&CATEGORIA&'-'&MARCA&'-'&ID_SUCURSAL&'-'&FECHA_FIN 			as PlanesComerciales.Llave,
+		Capitalize(NOMBRE_EVENTO)																			as PlanesComerciales.NombreEvento, 
+		FECHA_INICIO																						as PlanesComerciales.FechaInicio, 
+		FECHA_FIN																							as PlanesComerciales.FechaFin,
+		ID_SUCURSAL																								as PlanesComerciales.Id_PuntoVenta, 
+		ID_ASESOR																					as PlanesComerciales.Id_Asesor, 
+		CATEGORIA																							as PlanesComerciales.Categoria,  
+		SUBTIPO_IMPLEMENTACION																				as PlanesComerciales.SubTipo_Implementacion,
+		CANTIDAD																							as PlanesComerciales.Cantidad, 
+		Capitalize(MARCA)																					as PlanesComerciales.Marca,
+		_FECHA																								as PlanesComerciales.Fecha,
+		FECHAHORA																							as PlanesComerciales.FechaHora,
+		ESTADO												            									as PlanesComerciales.Estado,
+		NOVEDAD																								as PlanesComerciales.Novedad,
+		CUMPLE_CON_LA_IMPLEMENTACION																		as PlanesComerciales.CumpleImplementacion,
+		OTRO_TIPO_SUBTIPO																					as PlanesComerciales.OtroTipoSubtipo,
+		TIPO_GESTION_ESTRATEGIA																				as PlanesComerciales.TipoGestionEstrategia,
+		URL_FOTO																							as PlanesComerciales.Url_Captura,
+		CANTIDAD_IMPLEMENTACION																				as PlanesComerciales.Cantidad_Implementacion,
+		Capitalize(CAUSAL_DE_NO_CUMPLIMIENTO_IMPL)															as PlanesComerciales.Causal_NoCumple_Implementacion
+	Resident Planes_Comerciales_Tmp2;
+	DROP Table Planes_Comerciales_Tmp2;
+
+    
+STORE PlanesComerciales INTO [lib://COMP_DataMart (eficacia_admin_analitica)/SGI/Colombia/CENTRAL_CERVECERA/_PlanesComerciales.qvd];
+Drop Table  PlanesComerciales;

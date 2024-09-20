@@ -1,0 +1,118 @@
+
+Participacion_Tmp1:  
+    LOAD 
+        ID_SUCURSAL             as IdPuntoVenta,
+        ID_ASESOR               as IdPersona,
+        FECHA		        as _Fecha,
+        CANTIDAD_CARAS_CMS      as Cant_Caras,
+        MARCA                   as Marca,
+        SUBCATEGORIA            as SubCategoria,
+        ID_REGISTRO             as IdRegistro
+    FROM 
+    [lib://COMP_Stage (eficacia_admin_analitica)/SGI/Colombia/HEINEKEN/Participacion_$(Anno)$(Mes)*.qvd]
+    (qvd);
+
+Categoria:
+    LOAD 
+        Capitalize(Marca)       as Marca, 
+        Capitalize(TipoEmpresa) as TipoEmpresa, 
+        Capitalize(Categoria)   as Categoria, 
+        Capitalize(Segmento)    as Segmento
+    FROM 
+    [lib://COMP_Stage (eficacia_admin_analitica)/SGI/Colombia/CENTRAL_CERVECERA/Sh_Categoria.qvd] 
+    (qvd);
+
+/********************************************************************************/
+/*							Comienza Transformación								*/	
+/********************************************************************************/
+/*---------*/
+NoConcatenate
+Participacion_Tmp2:  
+    LOAD Distinct
+        IdPuntoVenta,
+        IdPersona,
+        Date(left(date(_Fecha,'DD/MM/YYYY'),10),'YYYY/MM/DD') 		as Fecha,
+        Year(Date(left(date(_Fecha,'DD/MM/YYYY'),10),'YYYY/MM/DD'))&Num(Month(Date(left(date(_Fecha,'DD/MM/YYYY'),10),'YYYY/MM/DD')),'00')		as Periodo,
+        Applymap('Map_Cadena', IdPuntoVenta, Null())			    as Cadena,
+        Cant_Caras,
+        Capitalize(REPLACE(REPLACE(Capitalize(Marca), 'Beck´S', 'Becks'), 'Redd´S', 'Redds'))	 as Marca,
+        Capitalize(SubCategoria)        							as SubCategoria,
+        IdRegistro
+    Resident Participacion_Tmp1
+    where 
+        not WildMatch(IdPersona,'46468', '145723', '160381', '169336')
+    and Date(left(date(_Fecha,'DD/MM/YYYY'),10),'YYYY/MM/DD') >'2022/12/31'
+    and Cant_Caras>0
+    And Applymap('Map_Rol', IdPersona, Null())<> 'SUPERVISOR TIENDAS';
+    Drop Table Participacion_Tmp1;
+
+/*---------*/
+NoConcatenate
+Participacion_Tmp3:
+    LOAD Distinct
+        IdPuntoVenta,
+        IdPersona,
+        Fecha,
+        Cant_Caras,
+        Periodo,
+        Capitalize(Cadena)                                          as Cadena,
+        Marca,
+        SubCategoria,
+        IdRegistro,
+        Applymap('Map_Metas', Cadena, Null())			    	    as Meta
+    Resident Participacion_Tmp2;
+    Drop Table Participacion_Tmp2;
+
+Left Join
+    LOAD
+        Marca, 
+        TipoEmpresa, 
+        Categoria, 
+        Segmento
+    Resident Categoria;
+    DROP Table Categoria;
+
+NoConcatenate
+Participacion_Tmp4:
+LOAD
+    IdPuntoVenta&'-'&IdPersona&'-'&Fecha	as Llave,
+	IdPuntoVenta,
+    IdPersona,
+    Fecha,
+    Periodo,
+    Cant_Caras,
+    Cadena,
+    Marca,
+    SubCategoria,
+    IdRegistro,
+    Meta,
+    TipoEmpresa,
+    Categoria,
+    Segmento
+Resident Participacion_Tmp3
+Where
+	((Marca = 'Tecate') AND (Periodo >= '202312') And (Cadena = 'Olimpica') OR (Marca <> 'Tecate'));
+DROP Table Participacion_Tmp3;
+
+
+/*---------*/
+NoConcatenate
+Participacion:
+    LOAD Distinct
+        IdPuntoVenta&'-'&IdPersona&'-'&Fecha	as CK.Key1,
+        IdPuntoVenta					        as Participacion.IdPuntoVenta,
+        IdPersona					            as Participacion.IdPersona,
+        Fecha						            as Participacion.Fecha,
+        Cant_Caras			                    as Participacion.Cant_Caras,
+        Marca                                   as Participacion.Marca,
+        Meta									as Participacion.Meta,
+        Segmento                                as Participacion.Segmentacion,
+        TipoEmpresa                             as Participacion.TipoEmpresa,
+        Categoria                               as Participacion.Categoria,
+        SubCategoria                            as Participacion.SubCategoria,
+        IdRegistro                              as Participacion.IdRegistro  
+    Resident Participacion_Tmp4;
+    Drop Table Participacion_Tmp4;
+
+STORE Participacion INTO [lib://COMP_DataMart (eficacia_admin_analitica)/SGI/Colombia/CENTRAL_CERVECERA/_Participacion_$(Anno)$(Mes).qvd];
+Drop Table Participacion;

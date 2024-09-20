@@ -1,0 +1,274 @@
+FechasCortas_Tmp:
+	LOAD 	
+		NOMBRE_ENCUESTA				as NombreEncuesta, 
+		PREGUNTA					as Pregunta, 
+		RESPUESTA_2				    as Respuesta2, 
+		SECCION						as Producto, 
+		ID_SUCURSAL					as Id_Sucursal, 
+		ID_ASESOR					as Id_Usuario, 
+		FECHA					as _Fecha,
+		ID_REGISTRO					as ID_Registro
+	FROM
+	[lib://COMP_Stage (eficacia_admin_analitica)/SGI/Colombia/HEINEKEN\En_ProximosVencer_*.qvd]
+	(qvd);
+
+NoConcatenate
+FechasCortas_Tmp1.1:
+	LOAD 	
+		NombreEncuesta, 
+		Pregunta, 
+		replace(Respuesta2,Chr(10),' ')			as Respuesta2, 
+		Producto, 
+		Id_Sucursal, 
+		Id_Usuario, 
+		_Fecha,
+		ID_Registro
+	Resident FechasCortas_Tmp;
+	DROP Table FechasCortas_Tmp;
+
+Hectolitos_Tmp:
+LOAD 
+	 Producto, 
+     Marca, 
+     Categoria, 
+     Hectolitos
+FROM 
+    [lib://COMP_Stage (eficacia_admin_analitica)/SGI/Colombia/CENTRAL_CERVECERA/Sh_Hectolitos.qvd] 
+    (qvd);
+
+
+NoConcatenate
+FechasCortas_Tmp1:
+LOAD
+		Right(Pregunta,1)						        						as Numero,
+		Num#(Respuesta2)														as Cantidad, 
+		Capitalize(Producto)													as Producto, 
+		Id_Sucursal, 
+		Id_Usuario,
+		Capitalize(Applymap('Map_Cadena', Id_Sucursal, Null()))			    	as Cadena, 
+		Capitalize(Applymap('Map_Canal', Id_Sucursal, Null()))			    	as Canal, 
+		Capitalize(Applymap('Map_Pdv', Id_Sucursal, Null()))			    	as Pdv, 
+		Date(left(date(_Fecha,'DD/MM/YYYY'),10),'YYYY/MM/DD')					as Fecha,
+		ID_Registro
+Resident FechasCortas_Tmp1.1
+ Where
+		Pregunta like 'INDIQUE LA CANTIDAD DE PRODUCTO DE LA REFERENCIA SELECCIONADA PROXIMA A VENCER*';
+		
+Outer Join
+	LOAD
+		Right(Pregunta,1)						        						as Numero,
+		Date(Date#(Respuesta2,'DD/MM/YYYY'),'YYYY/MM/DD')						as Fecha_Vencimiento, 
+		Capitalize(Date(Date#(Respuesta2,'DD/MM/YYYY'), 'MMMM'))				as Mes_Vencimiento,
+		Num(Month(Date#(Respuesta2,'DD/MM/YYYY')), '00')						as Num_Mes_Vencimiento,  
+		Capitalize(Producto)													as Producto, 
+		Id_Sucursal, 
+		Id_Usuario, 
+		Date(left(date(_Fecha,'DD/MM/YYYY'),10),'YYYY/MM/DD')					as Fecha,
+		Capitalize(Applymap('Map_Cadena', Id_Sucursal, Null()))			    	as Cadena, 
+		Capitalize(Applymap('Map_Canal', Id_Sucursal, Null()))			    	as Canal, 
+		Capitalize(Applymap('Map_Pdv', Id_Sucursal, Null()))			    	as Pdv, 
+		ID_Registro
+Resident FechasCortas_Tmp1.1
+ Where
+		Pregunta like 'REGISTRE LA FECHA DE VENCIMIENTO DEL PRODUCTO PROXIMO A VENCER*';
+DROP Table FechasCortas_Tmp1.1;
+
+NoConcatenate
+FechasCortas_Tmp2:
+LOAD
+		Fecha_Vencimiento, 
+		Mes_Vencimiento,
+		Num_Mes_Vencimiento, 
+		Canal, 
+		Pdv,
+		Producto, 
+		Id_Sucursal, 
+		Id_Usuario, 
+		Fecha,
+		Numero,
+		Cadena,
+		ID_Registro,
+		Cantidad,
+		Applymap('Map_Semanas', Fecha, Null())                    	as Semana,
+		Capitalize(Applymap('Map_Ciudad', Id_Sucursal, Null()))			    	as Ciudad
+Resident FechasCortas_Tmp1
+Where
+	not WildMatch(Id_Usuario,'46468', '145723', '160381', '169336')
+	and wildmatch(Applymap('Map_Rol', Id_Usuario, Null()),'GESTOR', 'PROMOTOR HEINEKEN');
+DROP Table FechasCortas_Tmp1;
+
+Left Join
+Load  distinct
+	 Producto, 
+     Marca, 
+     Categoria, 
+     Hectolitos
+Resident Hectolitos_Tmp;
+DROP Table 	Hectolitos_Tmp;
+
+
+NoConcatenate
+FechasCortas_Tmp3:
+LOAD
+	Fecha_Vencimiento, 
+	Mes_Vencimiento,
+	Num_Mes_Vencimiento, 
+	Producto, 
+	Id_Sucursal,
+	Ciudad,
+	Numero,
+	Pdv,
+	Canal,  
+	Id_Usuario, 
+	Fecha,
+	Cadena,
+	ID_Registro,
+	Cantidad,
+	Semana,
+	Marca, 
+    Categoria, 
+    Year(Fecha)&Num(Month(Fecha), '00')		as Periodo,
+    Hectolitos
+Resident FechasCortas_Tmp2
+WHERE
+    ((Producto = 'Andina Lata 473ml Und' OR Producto = 'Tecate Botella 330ml Und' OR Producto = 'Miller Lite Botella X24 330ml' OR Producto = 'Miller Lite Botella 330ml Und' OR Producto = 'Andina Light Botella 330ml Und') 
+AND (Canal = 'Autoservicios Alcance' OR Canal = 'Autoservicios Regional Alcance') OR (Producto <> 'Tecate Botella 330ml Und' AND Producto <> 'Andina Lata 473ml Und' AND
+Producto <> 'Miller Lite Botella X24 330ml' AND Producto <> 'Miller Lite Botella 330ml Und' AND Producto <> 'Andina Light Botella 330ml Und'))
+    
+AND
+((Marca = 'Kunstmann') AND (Cadena = 'Exito' OR Cadena = 'Exito Express' OR Cadena = 'Carulla' OR Cadena = 'Carulla Express' OR Cadena = 'Olimpica' OR Cadena = 'Superinter' OR Cadena = 'Surtimax' OR Cadena = 'Surtimayoristas') 
+OR (Marca <> 'Kunstmann'))
+
+AND
+((Marca = 'Central') AND (Cadena = 'Exito' OR Cadena = 'Exito Express' OR Cadena = 'Carulla' OR Cadena = 'Carulla Express' OR Cadena = 'Olimpica' OR Cadena = 'Superinter' OR Cadena = 'Surtimax' OR Cadena = 'Surtimayoristas' OR Cadena = 'Colsubsidio' OR Cadena = 'Inversiones Euro S.A.') 
+OR (Marca <> 'Central'))
+
+AND
+((Producto = 'Miller Lite X250 Botella') AND (Cadena = 'Olimpica') 
+OR (Producto <> 'Miller Lite X250 Botella'))
+
+AND
+(Not WildMatch(Producto, 'Heineken Botella 650ml und', '3 Cordilleras Blanca Botella X3 330ml'))
+
+AND
+(((Marca = 'Andes' AND Ciudad = 'Bogotá') AND(Cadena = 'Exito' OR Cadena = 'Exito Express' OR Cadena = 'Carulla' OR Cadena = 'Carulla Express' OR Cadena = 'Olimpica' OR Cadena = 'Superinter' OR Cadena = 'Surtimax' OR Cadena = 'Surtimayoristas'
+    ))
+OR (Marca <> 'Andes' OR Ciudad <> 'Bogotá'));
+    
+DROP Table FechasCortas_Tmp2;
+
+NoConcatenate
+FechasCortas_Tmp4:
+LOAD
+	Id_Usuario,
+	Id_Sucursal,
+	Semana,
+	Producto,
+	Numero,
+	Periodo,
+	Max(Fecha)        	as Fecha,
+	Max(ID_Registro)	as ID_Registro
+Resident FechasCortas_Tmp3
+Group By
+	Id_Usuario,
+	Id_Sucursal,
+	Semana,
+	Numero,
+	Producto,
+	Periodo;
+
+Left Join
+LOAD
+	Fecha_Vencimiento, 
+	Mes_Vencimiento,
+	Num_Mes_Vencimiento, 
+	Producto, 
+	Id_Sucursal,
+	Ciudad,
+	Pdv,
+	Canal,  
+	Id_Usuario, 
+	Fecha,
+	Cadena,
+	Numero,
+	//ID_Registro,
+	Cantidad,
+	Semana,
+	Marca, 
+    Categoria, 
+    Periodo,
+    Hectolitos
+ Resident FechasCortas_Tmp3;
+Drop table FechasCortas_Tmp3;
+
+
+
+NoConcatenate
+FechasCortas_Tmp5:
+LOAD 
+	Fecha_Vencimiento,
+	Mes_Vencimiento,
+	Num_Mes_Vencimiento, 
+	Producto, 
+	Id_Sucursal,
+	Ciudad,
+	Canal,
+	Pdv,  
+	Id_Usuario, 
+	Fecha,
+	Capitalize(Upper(Date(Fecha, 'MMMM'))) 					as Mes,
+	Year(Fecha_Vencimiento)									as Año,
+	Cadena,
+	ID_Registro,
+	Cantidad,
+	Semana,
+	Marca, 
+    Categoria, 
+    Hectolitos,
+    Periodo,
+	Year(Fecha_Vencimiento)&Num_Mes_Vencimiento     as NumPeriodoVencimiento,
+	Year(Fecha_Vencimiento)&Mes_Vencimiento			as PeriodoVencimiento,
+   If(Mes_Vencimiento >= Capitalize(Date(MonthStart(Today()), 'MMMM'))
+    AND Mes_Vencimiento <= Capitalize(Date(AddMonths(MonthStart(Today()), 2), 'MMMM')), 'OK', 'NO') as Estado,
+    If(Categoria='Cerveza', '540000', '340000')														as Valores,
+    Cantidad*Hectolitos      																		as Hectolitos2
+Resident FechasCortas_Tmp4
+WHERE NOT (Producto = '3 Cordilleras Mona Botella X4 330ml' AND ID_Registro = '51874882')
+And
+((Marca = 'Tecate') AND (Periodo >= '202312') And (Cadena = 'Olimpica') OR (Marca <> 'Tecate'));
+Drop table FechasCortas_Tmp4;
+
+NoConcatenate
+FechasCortas:
+LOAD
+	Id_Sucursal&'-'&Id_Usuario&'-'&Fecha					as CK.Key1,
+	Fecha_Vencimiento										as FechasCortas.Fecha_Vencimiento,
+	Mes_Vencimiento											as FechasCortas.Mes_Vencimiento,
+	Num_Mes_Vencimiento										as FechasCortas.Num_Mes_Vencimiento, 
+	NumPeriodoVencimiento									as FechasCortas.NumPeriodoVencimiento,
+	Producto												as FechasCortas.Producto, 
+	Id_Sucursal												as FechasCortas.Id_Sucursal,
+	Periodo													as FechasCortas.Periodo,
+	Ciudad													as FechasCortas.Ciudad,
+	Canal													as FechasCortas.Canal,
+	ApplyMap('Map_Ean', Producto, Null())					as FechasCortas.Ean,
+	Id_Usuario												as FechasCortas.Id_Usuario, 
+	Fecha													as FechasCortas.Fecha,
+	PeriodoVencimiento										as FechasCortas.PeriodoVencimiento,
+	Año														as FechasCortas.Año,
+	Mes														as FechasCortas.Mes,
+	ID_Registro												as FechasCortas.ID_Registro,
+	Cantidad												as FechasCortas.Cantidad,
+	Marca													as FechasCortas.Marca,  
+	Semana													as FechasCortas.Semana,
+	Hectolitos2*Valores										as FechasCortas.Valor,
+	Hectolitos2												as FechasCortas.Hectolitos2,
+    Hectolitos												as FechasCortas.Hectolitos,
+   	Estado													as FechasCortas.Estado,
+   	Valores													as FechasCortas.Valores,
+   	Categoria												as FechasCortas.Categoria
+Resident FechasCortas_Tmp5;
+drop table FechasCortas_Tmp5;
+
+STORE FechasCortas INTO [lib://COMP_DataMart (eficacia_admin_analitica)/SGI/Colombia/CENTRAL_CERVECERA/_FechasCortas.qvd];
+Drop Table  FechasCortas;

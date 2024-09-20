@@ -1,0 +1,44 @@
+
+FotoParticipacion_Tmp:
+LOAD
+     TIPO_ACTIVIDAD			as TipoActividad,  
+     ID_SUCURSAL			as IdPuntoVenta, 
+     ID_ASESOR				as IdPersona, 
+     FECHA				as _Fecha, 
+     ID_REGISTRO			as IdRegistro, 
+     NOMBRE_ARCHIVO			as Url_Captura
+FROM
+[lib://COMP_Stage (eficacia_admin_analitica)/SGI/Colombia/HEINEKEN/Actividades_$(Anno)$(Mes)*.qvd]
+(qvd);
+
+NoConcatenate
+FotoParticipacion_Tmp1:
+LOAD
+	 IdPuntoVenta&'-'&IdPersona&'-'&DATE(left(date(_Fecha,'DD/MM/YYYY'),10),'YYYY/MM/DD')			as CK.Key1,
+	 TipoActividad,  
+     IdPuntoVenta, 
+     IdPersona, 
+     DATE(left(date(_Fecha,'DD/MM/YYYY'),10),'YYYY/MM/DD')						as Fecha,
+     IdRegistro, 
+     'https://s3-us-west-2.amazonaws.com/ipveficacia2/'&Date(_Fecha,'YYYY')&'/'&Date(_Fecha,'MM')&'/'&526&'/'&Url_Captura		as Url_Captura
+Resident FotoParticipacion_Tmp
+	Where
+		TipoActividad='FOTO PARTICIPACION'
+		And not WildMatch(IdPersona,'46468', '145723', '160381', '169336');
+DROP Table FotoParticipacion_Tmp;
+
+NoConcatenate
+FotoParticipacion:
+LOAD Distinct
+    CK.Key1,
+    IdPuntoVenta            as FotoParticipacion.IdPuntoVenta, 
+    IdPersona               as FotoParticipacion.IdPersona, 
+    Fecha                   as FotoParticipacion.Fecha,
+    IdRegistro              as FotoParticipacion.IdRegistro,
+    Url_Captura             as FotoParticipacion.Url_Captura
+Resident FotoParticipacion_Tmp1;
+Drop Table FotoParticipacion_Tmp1;
+
+
+STORE FotoParticipacion INTO [lib://COMP_DataMart (eficacia_admin_analitica)/SGI/Colombia/CENTRAL_CERVECERA/_FotoParticipacion_$(Anno)$(Mes).qvd];
+Drop Table FotoParticipacion;

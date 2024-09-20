@@ -1,0 +1,350 @@
+Metas:
+     LOAD 
+          CADENA				as Cadena, 
+          META					as Meta
+     FROM
+     [lib://COMP_SharePoint_Internal (eficacia_admin_analitica)/SGI/Colombia/CENTRAL_CERVECERA\METAS PARTICIPACIÓN.xlsx]
+     (ooxml, embedded labels, table is Hoja1);
+
+STORE Metas INTO [lib://COMP_Stage (eficacia_admin_analitica)/SGI/Colombia/CENTRAL_CERVECERA/Sh_Metas.qvd] (qvd);
+Drop Table Metas;
+
+
+
+
+Categoria:
+     LOAD 
+          MARCAS				as Marca, 
+          [TIPO EMPRESA]			as TipoEmpresa, 
+          CATEGORIA				as Categoria, 
+          SEGMENTO				as Segmento
+     FROM
+     [lib://COMP_SharePoint_Internal (eficacia_admin_analitica)/SGI/Colombia\CENTRAL_CERVECERA\SHAREPOINT.xlsx]
+     (ooxml, embedded labels, table is Hoja1);
+
+STORE Categoria INTO [lib://COMP_Stage (eficacia_admin_analitica)/SGI/Colombia/CENTRAL_CERVECERA/Sh_Categoria.qvd] (qvd);
+Drop Table Categoria;
+
+
+
+
+PesoAgotados:
+     LOAD 
+          [&]			          as Llave, 
+          [PESO ACTUAL]			as Peso
+     FROM
+     [lib://COMP_SharePoint_Internal (eficacia_admin_analitica)/SGI/Colombia\CENTRAL_CERVECERA\PORTAFOLIO PDV-PESO AGOTADOSS.xlsx]
+     (ooxml, embedded labels, table is Hoja2);
+
+STORE PesoAgotados INTO [lib://COMP_Stage (eficacia_admin_analitica)/SGI/Colombia/CENTRAL_CERVECERA/Sh_PesoAgotados.qvd] (qvd);
+Drop Table PesoAgotados;
+
+
+
+Semanas:
+     LOAD 
+          Fecha, 
+          Semana
+     FROM
+     [lib://COMP_SharePoint_Internal (eficacia_admin_analitica)/SGI/Colombia\CENTRAL_CERVECERA\Semanas Central Cervecera.xlsx]
+     (ooxml, embedded labels, table is Hoja1);
+
+STORE Semanas INTO [lib://COMP_Stage (eficacia_admin_analitica)/SGI/Colombia/CENTRAL_CERVECERA/Sh_Semanas.qvd] (qvd);
+Drop Table Semanas;
+
+
+
+ValorExhibicion:
+LOAD 
+	 Capitalize([TIPO DE EXHIBICION])				     as SubTipoImplementacion, 
+     [VALOR PROMEDIO]								as Valor
+FROM
+[lib://COMP_SharePoint_Internal (eficacia_admin_analitica)/SGI/Colombia\CENTRAL_CERVECERA\Valor Exhibicion.xlsx]
+(ooxml, embedded labels, table is Hoja1);
+
+STORE ValorExhibicion INTO [lib://COMP_Stage (eficacia_admin_analitica)/SGI/Colombia/CENTRAL_CERVECERA/Sh_ValorExhibicion.qvd] (qvd);
+Drop Table ValorExhibicion;
+
+Exhibicion:
+LOAD 
+	 Capitalize([TIPO DE EXHIBICION])				as Subtipo_Actividad, 
+     [PROMEDIO VALOR]							as Valor
+FROM
+[lib://COMP_SharePoint_Internal (eficacia_admin_analitica)/SGI/Colombia\CENTRAL_CERVECERA\SHAREPOINT VALOR EXHIBICIONES.xlsx]
+(ooxml, embedded labels, table is Hoja1);
+
+STORE Exhibicion INTO [lib://COMP_Stage (eficacia_admin_analitica)/SGI/Colombia/CENTRAL_CERVECERA/Sh_Exhibicion.qvd] (qvd);
+Drop Table Exhibicion;
+
+
+ExhibicionCadena:
+LOAD 
+	 Capitalize([TIPO DE EXHIBICION])						as Cadena, 
+     [PUNTA DE GONDOLA SECA]								as PuntaDeGondolaSeca, 
+     [PUNTA DE GONDOLA FRIA]								as PuntaDeGondolaFria, 
+     [ESTIBA/MT2]										as EstibaMT2, 
+     CHIMENEA											as Chimenea, 
+     [MUEBLE 50 x 50 cm]									as Mueble50x50cm, 
+     [MUEBLE 100 x 100 cm]								as Mueble100x100cm, 
+     TOPE												as Tope, 
+     LATERAL											as Lateral, 
+     CROSS											as Cross, 
+     [MEDIA LUNA-ARRUME]									as MediaLunaArrume, 
+     NEVERA											as Nevera
+FROM
+[lib://COMP_SharePoint_Internal (eficacia_admin_analitica)/SGI/Colombia\CENTRAL_CERVECERA\SHAREPOINT VALOR EXHIBICIONES.xlsx]
+(ooxml, embedded labels, table is Hoja2);
+
+STORE ExhibicionCadena INTO [lib://COMP_Stage (eficacia_admin_analitica)/SGI/Colombia/CENTRAL_CERVECERA/Sh_ExhibicionCadena.qvd] (qvd);
+Drop Table ExhibicionCadena;
+
+
+Hectolitos:
+LOAD 
+	Capitalize(CATEGORIA)				as Producto, 
+     Capitalize(MARCA)					as Marca, 
+     Capitalize(CATEGORIA1)				as Categoria, 
+     Capitalize(HECTOLITROS)			     as Hectolitos
+FROM
+[lib://COMP_SharePoint_Internal (eficacia_admin_analitica)/SGI/Colombia\CENTRAL_CERVECERA\SHAREPOINT MARCA, CATEGORIA Y HECTOLITROS.xlsx]
+(ooxml, embedded labels, table is Hoja1);
+
+STORE Hectolitos INTO [lib://COMP_Stage (eficacia_admin_analitica)/SGI/Colombia/CENTRAL_CERVECERA/Sh_Hectolitos.qvd] (qvd);
+Drop Table Hectolitos;
+
+Universo:
+LOAD 
+     Capitalize(CADENA)                      as Cadena, 
+     UNIVERSO                                as Universo
+FROM
+[lib://COMP_SharePoint_Internal (eficacia_admin_analitica)/SGI/Colombia\CENTRAL_CERVECERA\BASE DE DATOS ATENCION.xlsx]
+(ooxml, embedded labels, table is Hoja1);
+
+STORE Universo INTO [lib://COMP_Stage (eficacia_admin_analitica)/SGI/Colombia/CENTRAL_CERVECERA/Sh_Universo.qvd] (qvd);
+Drop Table Universo;
+
+
+Inventario:    
+LOAD 
+ 	 [ID PDV SGI]				as Id_PuntoVenta, 
+     Capitalize(MARCA)			as Marca, 
+     [Inv Homologado]			as Inventario,
+     INV                           as Inv,
+     [Prog. Rutero]                as ProgRutero, 
+     [Cadena SGI]				as CadenaFecha, 
+     [Logo Cadena]				as Logo,
+     [Fecha de Actualización]	     as FechaActualizacion,
+     CADENA					as Cadena, 
+     EAN						as CodBarras, 
+     [ID PRODUCTO SGI]			as Id_Producto,
+     PRODUCTO					as Producto, 
+     SUPERVISOR				as Supervisor
+FROM
+[lib://COMP_SharePoint_Internal (eficacia_admin_analitica)/SGI/Colombia\CENTRAL_CERVECERA\2024_02_02 Tbl_Inventario.xlsx]
+(ooxml, embedded labels, table is Hoja1);
+
+STORE Inventario INTO [lib://COMP_Stage (eficacia_admin_analitica)/SGI/Colombia/CENTRAL_CERVECERA/Sh_Inventario.qvd] (qvd);
+Drop Table Inventario;
+
+
+Ventas:
+LOAD 
+	 Capitalize([Nombre Marca SGI])					as Marca, 
+     [UND Vendidas por día.]						     as UndVendidasXdia, 
+     [Id_PdV SGI]									as Id_PuntoVenta,
+     [Cadena PdV SGI]				                    as Cadena, 
+     [Logo Cadena]					                    as Logo,
+     [Id_Pro SGI] 									as Id_Producto, 
+     [UND Vendidas Homologados]						as TotalVentas,
+     [Fecha Actualización]                                  as FechaActualizacion
+FROM
+[lib://COMP_SharePoint_Internal (eficacia_admin_analitica)/SGI/Colombia\CENTRAL_CERVECERA\Tbl_Ventas.xlsx]
+(ooxml, embedded labels, table is Hoja1);
+
+STORE Ventas INTO [lib://COMP_Stage (eficacia_admin_analitica)/SGI/Colombia/CENTRAL_CERVECERA/Sh_Ventas.qvd] (qvd);
+Drop Table Ventas;
+
+Cuota:
+LOAD 
+	 ID_PDV_SGI						as Id_PuntoVenta, 
+     Capitalize(MARCA_SGI)			     as Marca, 
+     [CUOTA HOMOLOGADA]				     as Cuota
+FROM
+[lib://COMP_SharePoint_Internal (eficacia_admin_analitica)/SGI/Colombia\CENTRAL_CERVECERA\Tbl_Cuotas.xlsx]
+(ooxml, embedded labels, table is [Hoja 1]);
+
+STORE Cuota INTO [lib://COMP_Stage (eficacia_admin_analitica)/SGI/Colombia/CENTRAL_CERVECERA/Sh_Cuota.qvd] (qvd);
+Drop Table Cuota;
+
+TipoEmpresa:		
+LOAD  
+     Capitalize([Nombre Marca])						as Marca, 
+     Capitalize([Tipo Empresa])						as TipoEmpresa
+FROM
+[lib://COMP_SharePoint_Internal (eficacia_admin_analitica)/SGI/Colombia\CENTRAL_CERVECERA\Tbl_MARCAS.xlsx]
+(ooxml, embedded labels, table is Hoja1);
+
+STORE TipoEmpresa INTO [lib://COMP_Stage (eficacia_admin_analitica)/SGI/Colombia/CENTRAL_CERVECERA/Sh_TipoEmpresa.qvd] (qvd);
+Drop Table TipoEmpresa;
+
+ExhibicionesValor:
+LOAD 
+	Capitalize(CADENA)						as Cadena, 
+     Capitalize(MARCA)						as Marca,
+     Capitalize([TIPO DE EXHIBICION])		     as Subtipo_Actividad, 
+     Id_SGI                                       as Id_PuntoVenta,
+     VALOR								as Valor
+FROM
+[lib://COMP_SharePoint_Internal (eficacia_admin_analitica)/SGI/Colombia\CENTRAL_CERVECERA\Tbl_EXHIBICIONES CCC.xlsx]
+(ooxml, embedded labels, table is Hoja1);
+
+STORE ExhibicionesValor INTO [lib://COMP_Stage (eficacia_admin_analitica)/SGI/Colombia/CENTRAL_CERVECERA/Sh_ExhibicionesValor.qvd] (qvd);
+Drop Table ExhibicionesValor;
+
+/*----------*/
+ExclusionPac:
+LOAD 
+	SECUENCIA,
+     ID_EVENTO,
+     ID_PV,
+     ID_SUBTIPO_IMPLEMENTACION,
+     MARCA,
+     Date(left(date(FECHA_INICIO,'DD/MM/YYYY'),10),'YYYY/MM/DD')	as FECHA_INICIO,
+     Date(left(date(FECHA_FIN,'DD/MM/YYYY'),10),'YYYY/MM/DD')    as FECHA_FIN,
+     CANTIDAD
+FROM
+[lib://COMP_SharePoint_Internal (eficacia_admin_analitica)/SGI/Colombia/CENTRAL_CERVECERA/EXCLUSION PAC.xlsx]
+(ooxml, embedded labels, table is Hoja1);
+
+STORE ExclusionPac INTO [lib://COMP_Stage (eficacia_admin_analitica)/SGI/Colombia/CENTRAL_CERVECERA/Sh_ExclusionPac.qvd] (qvd);
+Drop Table ExclusionPac;
+
+/*----------*/
+PDVPiloto:
+LOAD 
+	[ID PDV] as IdPdvPiloto
+FROM
+[lib://COMP_SharePoint_Internal (eficacia_admin_analitica)/SGI/Colombia/CENTRAL_CERVECERA/PDV PILOTO OLIMPICA.xlsx]
+(ooxml, embedded labels, table is Hoja1);
+
+STORE PDVPiloto INTO [lib://COMP_Stage (eficacia_admin_analitica)/SGI/Colombia/CENTRAL_CERVECERA/Sh_PDVPiloto.qvd] (qvd);
+Drop Table PDVPiloto;
+
+
+HomologacionMarca:
+LOAD 
+	[ID PDV]&Capitalize(MARCA)					as Llave,
+     Capitalize([MARCA PREDOMINANTE])				as MarcaPredominante 
+FROM
+[lib://COMP_SharePoint_Internal (eficacia_admin_analitica)/SGI/Colombia/CENTRAL_CERVECERA/HOMOLOGACION PAC.xlsx]
+(ooxml, embedded labels, table is Hoja1);
+
+STORE HomologacionMarca INTO [lib://COMP_Stage (eficacia_admin_analitica)/SGI/Colombia/CENTRAL_CERVECERA/Sh_HomologacionMarca.qvd] (qvd);
+Drop Table HomologacionMarca;
+
+
+ExclusionRegistros:     
+LOAD 
+	[ID REGISTRO]		as IdRegistro
+FROM
+[lib://COMP_SharePoint_Internal (eficacia_admin_analitica)/SGI/Colombia/CENTRAL_CERVECERA\SHAREPOINT EXCLUSION REGISTROS 21.03.2024.xlsx]
+(ooxml, embedded labels, table is Hoja1);
+
+STORE ExclusionRegistros INTO [lib://COMP_Stage (eficacia_admin_analitica)/SGI/Colombia/CENTRAL_CERVECERA/Sh_ExclusionRegistros.qvd] (qvd);
+Drop Table ExclusionRegistros;
+
+RangoMarca:
+LOAD 
+	[Nombre Productos SGI]&RESPUESTA      as Llave,	
+     PROVEEDOR						   as TipoEmpresa, 
+     [Nombre Productos SGI]			   as Producto1,
+     [PRECIO SUGERIDO]				   as PrecioSugerido, 
+     Categoria						   as Categoria1, 
+     ML							   as ML, 
+     MARCA						   as Marca, 
+     RESPUESTA						   as Tipo, 
+     SUPERIOR						   as RSuperior, 
+     INFERIOR						   as RInferior
+FROM
+[lib://COMP_SharePoint_Internal (eficacia_admin_analitica)/SGI/Colombia/CENTRAL_CERVECERA\Share Point BI Precios CCC.xlsx]
+(ooxml, embedded labels, table is Hoja1);
+
+STORE RangoMarca INTO [lib://COMP_Stage (eficacia_admin_analitica)/SGI/Colombia/CENTRAL_CERVECERA/Sh_RangoMarca.qvd] (qvd);
+Drop Table RangoMarca;
+
+
+ProductoEspejo:	
+LOAD 
+	Capitalize([Nombre Productos SGI]) 			as Producto, 
+     Capitalize([Producto Batalla])				as Batalla
+FROM
+[lib://COMP_SharePoint_Internal (eficacia_admin_analitica)/SGI/Colombia/CENTRAL_CERVECERA\BATALLAS.xlsx]
+(ooxml, embedded labels, table is Hoja1);
+
+STORE ProductoEspejo INTO [lib://COMP_Stage (eficacia_admin_analitica)/SGI/Colombia/CENTRAL_CERVECERA/Sh_ProductoEspejo.qvd] (qvd);
+Drop Table ProductoEspejo;
+
+
+
+AdicionMercaCentro:
+LOAD 
+	[FECHA INICIO EVENTO]				                                                                      as FECHA_INICIO, 
+     [FECHA FIN EVENTO]					                                                                      as FECHA_FIN, 
+     PUNTO_VENTA_ID						                                                                      as ID_PV, 
+     ID_EVENTO,
+     NOMBRE_EVENTO, 
+     Capitalize(SUBTIPO_IMPLEMENTACION)				                                                            as SUBTIPO_IMPLEMENTACION, 
+     CANTIDAD_PLANEADA					                                                                      as CANTIDAD, 
+     //Date#(Year(FECHA_REPORTE)&'/'&Num(Month(FECHA_REPORTE),'00')&'/'&Num(Day(FECHA_REPORTE),'00'),'YYYY/MM/DD')	as _FECHA,
+     FECHA_REPORTE,
+      Date#(Year(FECHA_REPORTE) & '/' & Num(Month(FECHA_REPORTE), '00') & '/' & Num(Day(FECHA_REPORTE), '00') & ' ' & Num(Hour(FECHA_REPORTE), '00') & ':' & Num(Minute(FECHA_REPORTE), '00') & ':' & Num(Second(FECHA_REPORTE), '00'),'YYYY/MM/DD hh:mm:ss')    as FECHAHORA,
+     ID_ASESOR_REPORTE, 
+     CUMPLE_CON_LA_IMPLEMENTACION, 
+     CANTIDAD_IMPLEMENTACION, 
+     OTRO_TIPO_SUBTIPO, 
+     CAUSAL_DE_NO_CUMPLIMIENTO_IMPL, 
+     CUMPLE_ESTRATEGIA, 
+     MARCA_IMPLEMENTACION																		as MARCA,
+     NOVEDAD
+FROM
+[lib://COMP_SharePoint_Internal (eficacia_admin_analitica)/SGI/Colombia/CENTRAL_CERVECERA\ADICION MERCACENTRO 26.03.2024.xlsx]
+(ooxml, embedded labels, table is Hoja1);
+
+STORE AdicionMercaCentro INTO [lib://COMP_Stage (eficacia_admin_analitica)/SGI/Colombia/CENTRAL_CERVECERA/Sh_AdicionMercaCentro.qvd] (qvd);
+Drop Table AdicionMercaCentro;
+
+MetaCerveza:
+LOAD
+	 Capitalize(CANAL)					as Canal, 
+     Capitalize(CADENA)					as Cadena, 
+     [META ESPACIOS CERVEZA]			     as MetaCerveza
+FROM
+[lib://COMP_SharePoint_Internal (eficacia_admin_analitica)/SGI/Colombia/CENTRAL_CERVECERA\METAS ESPACIOS CERVEZA Y MALTA.xlsx]
+(ooxml, embedded labels, table is [META CERVEZA]);
+
+STORE MetaCerveza INTO [lib://COMP_Stage (eficacia_admin_analitica)/SGI/Colombia/CENTRAL_CERVECERA/Sh_MetaCerveza.qvd] (qvd);
+Drop Table MetaCerveza;
+
+MetaMalta:
+LOAD 
+	 Capitalize(CANAL)					as Canal, 
+      Capitalize(CADENA)					as Cadena,  
+      [META ESPACIOS MALTA]				as MetaMalta
+FROM
+[lib://COMP_SharePoint_Internal (eficacia_admin_analitica)/SGI/Colombia/CENTRAL_CERVECERA\METAS ESPACIOS CERVEZA Y MALTA.xlsx]
+(ooxml, embedded labels, table is [META MALTA]);
+ 
+STORE MetaMalta INTO [lib://COMP_Stage (eficacia_admin_analitica)/SGI/Colombia/CENTRAL_CERVECERA/Sh_MetaMalta.qvd] (qvd);
+Drop Table MetaMalta;
+
+
+Kam:
+LOAD 
+	Capitalize(CADENA)				as Cadena, 
+     KAM							as Kam
+FROM
+[lib://COMP_SharePoint_Internal (eficacia_admin_analitica)/SGI/Colombia/CENTRAL_CERVECERA\DISTRIBUCION KAM.xlsx]
+(ooxml, embedded labels, table is [KAM CCC 2024]);
+
+STORE Kam INTO [lib://COMP_Stage (eficacia_admin_analitica)/SGI/Colombia/CENTRAL_CERVECERA/Sh_Kam.qvd] (qvd);
+Drop Table Kam;

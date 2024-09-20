@@ -1,0 +1,60 @@
+Actividades_Tmp1:
+	LOAD 	
+		EMPRESA					as Empresa,
+		CATEGORIA				as Categoria,
+		MARCA					as Marca,
+		TIPO_ACTIVIDAD				as Tipo_Actividad,
+		OBSERVACIONES				as Observaciones,
+		SUBTIPO_ACTIVIDAD			as Subtipo_Actividad,
+		ID_SUCURSAL				as Id_Sucursal,
+		ID_ASESOR				as Id_Usuario,
+		FECHA					as _Fecha_Visita,
+		ID_REGISTRO				as ID_Registro,
+		NOMBRE_ARCHIVO				as Url_Captura
+	FROM
+	[lib://COMP_Stage (eficacia_admin_analitica)/SGI/Colombia/HEINEKEN/Actividades_$(Anno)$(Mes)*.qvd]
+	(qvd);
+
+NoConcatenate
+Actividades_Tmp2:
+	LOAD
+		Capitalize(Empresa)																									as Empresa,
+		capitalize(Categoria)																								as Categoria,
+		Capitalize(Marca)																									as Marca,
+		Capitalize(Tipo_Actividad)																							as Tipo_Actividad,
+		replace(Capitalize(Observaciones),Chr(10),' ')																		as Observaciones,
+		capitalize(Subtipo_Actividad)																						as Subtipo_Actividad,
+		Id_Sucursal,
+		Id_Usuario,
+		DATE(left(date(_Fecha_Visita,'DD/MM/YYYY'),10),'YYYY/MM/DD')														as Fecha,
+		ID_Registro,
+		'$(RutaServerUno)'&Date(_Fecha_Visita,'YYYY')&'/'&Date(_Fecha_Visita,'MM')&'/'&$(vCodCliente)&'/'&Url_Captura		as Url_Captura
+	Resident Actividades_Tmp1
+	where 
+		not WildMatch(Id_Usuario,'46468', '145723', '160381', '169336')
+    and DATE(left(date(_Fecha_Visita,'DD/MM/YYYY'),10),'YYYY/MM/DD')>'2022/12/31'
+	and WildMatch(Tipo_Actividad,'AGOTADO SIN SURTIDO','SUGERIDO DE PEDIDO')
+	and Applymap('Map_Rol', Id_Usuario, Null()) <> 'SUPERVISOR TIENDAS'
+	and Empresa = 'HEINEKEN' ;
+	DROP Table Actividades_Tmp1;
+	
+NoConcatenate
+Actividades:
+	LOAD
+		Id_Sucursal&'-'&Id_Usuario&'-'&Fecha	as CK.Key1,
+		Empresa									as Actividades.Empresa,
+		Categoria								as Actividades.Categoria,
+		Marca									as Actividades.Marca,
+		Tipo_Actividad								as Actividades.Tipo_Actividad,
+		Observaciones								as Actividades.Observaciones,
+		Subtipo_Actividad							as Actividades.Subtipo_Actividad,
+		Id_Sucursal								as Actividades.Id_Sucursal,
+		Id_Usuario								as Actividades.Id_Usuario,
+		Fecha									as Actividades.Fecha,
+		ID_Registro								as Actividades.ID_Registro,
+		Url_Captura								as Actividades.Url_Captura
+	Resident Actividades_Tmp2;
+	DROP Table Actividades_Tmp2;
+
+STORE Actividades INTO [lib://COMP_DataMart (eficacia_admin_analitica)/SGI/Colombia/CENTRAL_CERVECERA/_Actividades_$(Anno)$(Mes).qvd];
+Drop Table  Actividades;

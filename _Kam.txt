@@ -1,0 +1,18 @@
+Kam_Tmp1:
+LOAD
+    Cadena, 
+    Kam
+FROM
+[lib://COMP_Stage (eficacia_admin_analitica)/SGI/Colombia/CENTRAL_CERVECERA/Sh_Kam.qvd] 
+(qvd);
+
+NoConcatenate
+Kam:
+LOAD
+    Cadena                      as Kam.Cadena,                
+    Kam                         as Kam.Kam
+Resident Kam_Tmp1;
+Drop Table Kam_Tmp1;
+
+Store Kam INTO [lib://COMP_Model (eficacia_admin_analitica)/SGI/Colombia/CENTRAL_CERVECERA/Modelo/_Kam.csv](txt, delimiter is '|');
+Drop Table Kam;

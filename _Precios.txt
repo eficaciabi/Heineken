@@ -1,0 +1,347 @@
+
+RangoMarca_Tmp:
+LOAD 
+	Llave,	
+     TipoEmpresa, 
+     Producto1, 
+     PrecioSugerido,
+     Categoria1, 
+     ML, 
+     Marca, 
+     Tipo, 
+     RSuperior, 
+     RInferior
+FROM 
+    [lib://COMP_Stage (eficacia_admin_analitica)/SGI/Colombia/CENTRAL_CERVECERA/Sh_RangoMarca.qvd] 
+    (qvd);
+
+Precios_Tmp:
+LOAD 
+	ID_SUCURSAL					as IdPuntoVenta, 
+     PREGUNTA						as Pregunta, 
+     ID_ASESOR						as IdPersona, 
+     SECCION						as Categoria,
+     FECHA						as _Fecha, 
+     RESPUESTA_1					as Respuesta1, 
+     RESPUESTA_2					as Respuesta2, 
+     ID_REGISTRO					as IdRegistro
+FROM
+[lib://COMP_Stage (eficacia_admin_analitica)/SGI/Colombia\HEINEKEN\En_ChequeoPrecios_$(Anno)$(Mes)*.qvd]
+(qvd);
+
+
+NoConcatenate
+Precios_Tmp1:
+LOAD
+	 IdPuntoVenta, 
+     SubField(Pregunta, '-', 2)                             as Producto,
+     SubField(Pregunta, '-', 1)                             as Variable,
+     IdPersona, 
+     Categoria,
+     DATE(left(date(_Fecha,'DD/MM/YYYY'),10),'YYYY/MM/DD')		as Fecha,
+     Week(DATE(left(date(_Fecha,'DD/MM/YYYY'),10),'YYYY/MM/DD'))	as Semana,
+     Respuesta1, 
+     Respuesta2, 
+     IdRegistro
+Resident Precios_Tmp
+Where
+	Not Wildmatch(IdPersona, '46468', '145723', '160381', '169336')
+	And  Applymap('Map_Rol', IdPersona, Null()) <> 'SUPERVISOR TIENDAS'
+	And Respuesta1<>'No Maneja Producto';
+DROP Table Precios_Tmp;
+
+NoConcatenate
+Precios_Tmp2:
+LOAD
+	 IdPuntoVenta, 
+     Producto,
+     IdPersona, 
+     Categoria,
+     Fecha,
+     Semana,
+     Respuesta2				as Precio, 
+     IdRegistro
+Resident Precios_Tmp1
+Where
+	Variable='PRECIO PROMOCION ';
+	
+Left Join
+LOAD
+	 IdPuntoVenta, 
+     Producto,
+     IdPersona, 
+     Categoria,
+     Fecha,
+     Semana,
+     Respuesta1			as Dinamica, 
+     IdRegistro
+Resident Precios_Tmp1
+Where
+	Variable='DINAMICA ';
+	
+Concatenate
+LOAD
+	IdPuntoVenta, 
+     Producto,
+     IdPersona, 
+     Categoria,
+     Fecha,
+     Semana,
+     'PRECIO REGULAR'				as Dinamica, 
+     Respuesta2						as Precio,
+     IdRegistro
+Resident Precios_Tmp1
+Where
+	Variable='PRECIO REGULAR ';
+DROP Table Precios_Tmp1;
+
+
+NoConcatenate
+Precios_Tmp3:
+LOAD
+	 Trim(Producto&Dinamica)   as Llave,
+	 IdPuntoVenta, 
+     Trim(Producto)			   as Producto,
+     Dinamica			 	   as Tipo,
+     IdPersona, 
+     Categoria,
+     Precio					   as Valor,
+     Semana,
+     Capitalize(ApplyMap('Map_Cadena', IdPuntoVenta, Null()))               as Cadena,
+     Fecha, 
+     IdRegistro
+Resident Precios_Tmp2;
+DROP Table Precios_Tmp2;
+
+Left Join
+LOAD
+	 Llave,	
+     If(TipoEmpresa = 'CCC', 'Propio', 'Competencia')						as TipoEmpresa, 
+     ML, 
+     Capitalize(Marca)			as Marca, 
+     PrecioSugerido,
+     Tipo, 
+     RSuperior, 
+     RInferior
+Resident RangoMarca_Tmp;
+DROP Table RangoMarca_Tmp;
+
+
+NoConcatenate
+Precios_Tmp4:
+LOAD
+	 IdPuntoVenta, 
+     Producto,
+     IdPersona, 
+     Categoria,
+     Cadena,
+     Fecha,
+     Semana,
+     TipoEmpresa, 
+     ML, 
+     Tipo, 
+     Num#(Valor)			 as Precio,
+     RSuperior, 
+     RInferior,
+     PrecioSugerido,
+     IdRegistro,
+     Llave,
+     Marca
+Resident Precios_Tmp3
+Where
+	((Marca = 'Central') AND (Cadena = 'Exito' OR Cadena = 'Exito Express' OR Cadena = 'Carulla' OR Cadena = 'Carulla Express' OR Cadena = 'Olimpica' OR Cadena = 'Superinter' OR Cadena = 'Surtimax' OR Cadena = 'Surtimayoristas' OR Cadena = 'Colsubsidio' OR Cadena = 'Inversiones Euro S.A.') 
+OR (Marca <> 'Central'))
+
+And
+((Marca = 'Tecate') And (Cadena = 'Olimpica') OR (Marca <> 'Tecate'))
+
+And
+((Producto = 'CERVEZA MILLER BOTELLA X 6 250ML') And (Cadena = 'Olimpica') OR (Producto <> 'CERVEZA MILLER BOTELLA X 6 250ML'));
+DROP Table Precios_Tmp3;
+
+
+NoConcatenate
+Precios_Tmp5:
+LOAD Distinct
+	 IdPuntoVenta, 
+     Producto,
+     IdPersona, 
+     Categoria,
+     Cadena,
+     Fecha,
+     Semana,
+     TipoEmpresa, 
+     ML, 
+     Tipo, 
+     RSuperior, 
+     PrecioSugerido,
+     RInferior,
+     Llave,
+     IdRegistro,
+     Marca,
+     Precio
+Resident Precios_Tmp4
+Where
+	WildMatch(Llave, Producto&Tipo) And Precio>=RInferior and Precio<=RSuperior;
+DROP Table Precios_Tmp4;
+
+
+NoConcatenate
+Precios_Tmp6:
+LOAD Distinct
+	 IdPuntoVenta, 
+     Producto,
+     IdPersona, 
+     Categoria,
+     Cadena,
+     Fecha,
+     PrecioSugerido                                                   as PrecioSugerido1,
+     IF(Llave=Producto&Tipo, PrecioSugerido/ML, Null())			as PrecioSugerido,
+     Semana                                                           as NumSemana,
+     'Semana '& Semana        							     as Semana,
+     TipoEmpresa, 
+     ML, 
+     Tipo, 
+     Llave,
+     IdRegistro,
+     Marca,
+     Precio,
+     ApplyMap('Map_Ciudad',IdPuntoVenta, Null())	                    as Ciudad,
+     IF(Llave=Producto&Tipo, Precio/ML, Null())			          as PrecioxMl
+Resident Precios_Tmp5;
+DROP Table Precios_Tmp5;
+
+NoConcatenate
+Precios_Tmp7:
+LOAD
+	Producto,
+	Semana,
+	Mode(PrecioxMl)					as Moda,
+	Mode(Precio)					as Moda1,
+	Min(PrecioxMl) 			as PrimerValor,
+	Min(Precio)				as PrimerValor1
+Resident Precios_Tmp6
+Group By
+	Producto,
+	Semana;
+	
+Left Join
+LOAD
+	 IdPuntoVenta, 
+     Producto,
+     IdPersona, 
+     Categoria,
+     Cadena,
+     Fecha,
+     PrecioSugerido,
+     PrecioSugerido1,
+     Semana,
+     Ciudad,
+     NumSemana,
+     TipoEmpresa, 
+     ML, 
+     Tipo, 
+     Precio, 
+     IdRegistro,
+     Marca,
+     PrecioxMl
+Resident Precios_Tmp6;
+Drop Table Precios_Tmp6;
+
+NoConcatenate
+Precios_Tmp8:
+LOAD
+	Producto,
+	Semana,
+	Ciudad,
+	Mode(PrecioxMl)					as ModaCiudad,
+	Mode(Precio)					as ModaCiudad1,
+	Min(PrecioxMl) 			as PrimerValorCiudad,
+	Min(Precio)				as PrimerValorCiudad1
+Resident Precios_Tmp7
+Group By
+	Producto,
+	Ciudad,
+	Semana;
+	
+Left Join
+LOAD
+	 IdPuntoVenta, 
+     Producto,
+     IdPersona, 
+     Categoria,
+     Cadena,
+     Fecha,
+     PrecioSugerido,
+     PrecioSugerido1,
+     Semana,
+     Ciudad,
+     NumSemana,
+     TipoEmpresa, 
+     ML, 
+     Tipo, 
+     Moda,
+	 Moda1,
+	 PrimerValor,
+	 PrimerValor1,
+     Precio, 
+     IdRegistro,
+     Marca,
+     PrecioxMl
+Resident Precios_Tmp7;
+Drop Table Precios_Tmp7;
+
+NoConcatenate
+Precios_Tmp9:
+LOAD 
+	 IdPuntoVenta, 
+     Capitalize(Producto)			as Producto,
+     IdPersona, 
+     Categoria,
+     Cadena,
+     Fecha,
+     PrecioSugerido,
+     PrecioSugerido1,
+     Semana,
+     NumSemana,
+     TipoEmpresa,
+     Ciudad, 
+     ML, 
+     Tipo, 
+     IdRegistro,
+     Marca,
+     Precio,
+     PrecioxMl,
+     If(IsNull(Moda), PrimerValor, Moda) as Moda,
+     If(IsNull(Moda1), PrimerValor1, Moda1) as Moda1,
+     If(IsNull(ModaCiudad), PrimerValorCiudad, ModaCiudad) as ModaCiudad,
+     If(IsNull(ModaCiudad1), PrimerValorCiudad1, ModaCiudad1) as ModaCiudad1
+Resident Precios_Tmp8;
+DROP Table Precios_Tmp8;
+
+NoConcatenate
+Precios:
+Load  
+     IdPuntoVenta&'-'&IdPersona&'-'&Producto&'-'&Fecha			     as SK.Precios,
+	IdPuntoVenta									          as Precios.IdPuntoVenta, 
+     Producto										          as Precios.Producto,
+     IdPersona										          as Precios.IdPersona, 
+     Fecha										          as Precios.Fecha,
+     Semana										          as Precios.Semana,
+     NumSemana                                                        as Precios.NumSemana,
+     Tipo									                    as Precios.Tipo, 
+     TipoEmpresa                                                      as Precios.TipoEmpresa,
+     PrecioxMl                                                        as Precios.PrecioxMl,
+     Precio										          as Precios.Precio, 
+     Moda                                                             as Precios.Moda,
+     Moda1                                                            as Precios.ModaMiles,
+     ModaCiudad                                                       as Precios.ModaCiudad,
+     ModaCiudad1                                                      as Precios.ModaCiudadMiles,
+     PrecioSugerido                                                   as Precios.PrecioSugerido,
+     PrecioSugerido1                                                  as Precios.PrecioSugerido1,
+     Marca										          as Precios.Marca
+Resident Precios_Tmp9;
+DROP Table Precios_Tmp9;
+
+STORE Precios INTO [lib://COMP_DataMart (eficacia_admin_analitica)/SGI/Colombia/CENTRAL_CERVECERA/_Precios_$(Anno)$(Mes).qvd];
+Drop Table  Precios;

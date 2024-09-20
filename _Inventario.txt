@@ -1,0 +1,136 @@
+
+Inventario_Tmp:    
+LOAD 
+ 	Id_PuntoVenta, 
+     Marca, 
+     Inv                                          as Inventario,
+     Date(FechaActualizacion, 'YYYY/MM/DD')		as FechaActualizacion,
+     CodBarras, 
+     ProgRutero, 
+     Id_Producto,
+     Producto, 
+     Supervisor
+FROM
+[lib://COMP_Stage (eficacia_admin_analitica)/SGI/Colombia/CENTRAL_CERVECERA/Sh_Inventario.qvd]
+(qvd);
+//    Where
+ //   ProgRutero=1;
+
+Ventas_Tmp:
+LOAD 
+ 	 Id_PuntoVenta, 
+     Marca,
+     Id_Producto,  
+     UndVendidasXdia,
+     TotalVentas
+FROM
+[lib://COMP_Stage (eficacia_admin_analitica)/SGI/Colombia/CENTRAL_CERVECERA/Sh_Ventas.qvd]
+(qvd);
+
+NoConcatenate
+Ventas_Tmp1:
+LOAD
+    Id_PuntoVenta,   
+    Marca,
+    Id_Producto,
+    Sum(TotalVentas) 			as TotalVentas,
+    Sum(UndVendidasXdia) 		as UndVendidasXdia
+ Resident Ventas_Tmp
+ Group by
+     Id_PuntoVenta,
+     Id_Producto, 
+     Marca;
+ 
+Left Join 
+LOAD
+	 Id_PuntoVenta, 
+	 Id_Producto,
+     Marca
+Resident Ventas_Tmp;
+DROP Table Ventas_Tmp;
+	
+
+NoConcatenate
+Inventario_Tmp1:
+LOAD
+	 Id_PuntoVenta, 
+     Marca, 
+     Id_Producto,
+     Sum(Inventario) 					as Inventario,
+     LastValue(FechaActualizacion) 		as FechaActualizacion
+Resident Inventario_Tmp
+Group By
+	Id_PuntoVenta, 
+	Id_Producto,
+     Marca;
+     
+Left Join
+LOAD
+     Id_PuntoVenta, 
+     Marca,
+     CodBarras, 
+     Id_Producto,
+     Producto, 
+     Supervisor
+Resident Inventario_Tmp;
+DROP Table Inventario_Tmp;
+
+
+NoConcatenate
+Inventario_Tmp2:
+LOAD
+	 Id_PuntoVenta&Marca&Id_Producto			as LLave,
+	 Id_PuntoVenta, 
+     Marca, 
+     Inventario,
+     FechaActualizacion,
+     CodBarras, 
+     Id_Producto,
+     Producto, 
+     Supervisor
+Resident Inventario_Tmp1;
+DROP Table Inventario_Tmp1;
+
+Left Join
+LOAD
+	Id_PuntoVenta&Marca&Id_Producto			as LLave, 
+	UndVendidasXdia
+Resident Ventas_Tmp1;
+DROP Table Ventas_Tmp1;
+
+NoConcatenate
+Inventario_Tmp3:
+LOAD
+	 Id_PuntoVenta, 
+     Marca, 
+     Inventario,
+     FechaActualizacion,
+     CodBarras, 
+     Id_Producto,
+     Producto, 
+     Supervisor,
+     UndVendidasXdia,
+     Round(Inventario/UndVendidasXdia)			as Dias
+Resident Inventario_Tmp2;
+DROP Table Inventario_Tmp2;
+
+NoConcatenate
+Inventario:
+Load  distinct
+    Id_PuntoVenta&'-'&Marca	                      as CK.Key1,
+    Id_PuntoVenta							  as Inventario.Id_PuntoVenta, 
+    Marca									  as Inventario.Marca, 
+    Inventario								  as Inventario.Inventario,
+    FechaActualizacion						  as Inventario.FechaActualizacion,
+    CodBarras								  as Inventario.CodBarras, 
+    Id_Producto							  as Inventario.Id_Producto,
+    Date(Dias+FechaActualizacion, 'YYYY/MM/DD')	  as Inventario.Stock,
+    Dias                                            as Inventario.Dias,
+    Producto								  as Inventario.Producto, 
+    Supervisor								  as Inventario.Supervisor,
+    UndVendidasXdia						       as Inventario.UndVendidasXdia
+Resident Inventario_Tmp3;
+DROP Table Inventario_Tmp3;
+
+STORE Inventario INTO [lib://COMP_DataMart (eficacia_admin_analitica)/SGI/Colombia/CENTRAL_CERVECERA/_Inventario.qvd];
+Drop Table  Inventario;

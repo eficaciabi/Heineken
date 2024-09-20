@@ -1,0 +1,65 @@
+Asesor_Tmp1:
+    LOAD
+        ID_ASESOR       as Id,
+        CEDULA          as Cedula,
+        NOMBRE          as Nombre,
+        APELLIDO        as Apellido,
+        OBSERVACIONES   as Observaciones,
+        NOMBRE_JEFE     as Jefe, 
+        ROL             as Rol,
+        ROL_ASESOR,
+        ID_JEFE
+    FROM 
+    [lib://COMP_Stage (eficacia_admin_analitica)/SGI/Colombia/HEINEKEN/IPV_Asesor.qvd]
+    (qvd);
+
+/*----------*/
+NoConcatenate
+Asesor_Tmp2:
+    LOAD
+        Id,
+        Cedula,
+        Capitalize(Nombre)                  as Nombre,
+        Capitalize(Apellido)                as Apellido,
+        Capitalize(Nombre&' '&Apellido) 	as NombreCompleto,
+        Capitalize(Jefe)                    as Jefe, 
+        replace(Observaciones,Chr(10),' ')  as Observaciones,
+        Capitalize(Rol)			            as Rol
+    Resident Asesor_Tmp1;
+
+left Join
+    LOAD
+        Id,
+        Capitalize(Nombre&' '&Apellido)	    as NOMBRE_GESTOR,
+        ID_JEFE				                as ID_SUPERVISOR
+    Resident Asesor_Tmp1
+    Where WildMatch(ROL_ASESOR,'PROMOTOR HEINEKEN');
+
+Left Join
+    LOAD
+        Id				                    as ID_SUPERVISOR,
+        Capitalize(Nombre&' '&Apellido)	    as NOMBRE_SUPERVISOR,
+        ID_JEFE				                as ID_COORDINADOR
+        Resident Asesor_Tmp1
+    Where WildMatch(ROL_ASESOR,'SUPERVISOR TIENDAS');
+    DROP Table Asesor_Tmp1;
+
+/*----------*/
+NoConcatenate
+Asesor:
+    LOAD
+        Id                      as SK.Persona,
+        Cedula                  as Asesor.Cedula,
+        Nombre                  as Asesor.Nombre,
+        Apellido                as Asesor.Apellido,
+        NombreCompleto	        as Asesor.NombreCompleto,
+        Observaciones	        as Asesor.Observaciones,
+        Rol				        as Asesor.Rol,
+        Jefe                    as Asesor.Jefe, 
+        NOMBRE_GESTOR           as Asesor.Gestor,
+        NOMBRE_SUPERVISOR       as Asesor.Supervisor
+    Resident Asesor_Tmp2;
+    Drop Table Asesor_Tmp2;
+
+Store Asesor into [lib://COMP_DataMart (eficacia_admin_analitica)/SGI/Colombia/CENTRAL_CERVECERA/_Asesor.qvd];
+Drop Table Asesor;
